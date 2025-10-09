@@ -1,0 +1,212 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Lista de resultados</title>
+<link rel="stylesheet" href="{% static 'laboratorio/css/estilo_ordenes.css' %}">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<style>
+/* 🔹 Encabezado Synlab */
+.synlab-menu{
+  position:fixed;top:0;left:0;right:0;z-index:1000;
+  background:#f9f9f9;border-bottom:1px solid #dcdcdc;
+  display:flex;align-items:center;gap:2rem;
+  padding:6px 16px 4px 16px;box-sizing:border-box;
+}
+.synlab-menu .logo{display:flex;align-items:center;gap:.6rem;margin-right:1rem;}
+.synlab-menu .logo img{height:28px;}
+.synlab-menu .logo span{font-weight:600;color:#333;font-size:1rem;}
+.synlab-menu .nav-item{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-size:.78rem;color:#333;text-decoration:none;font-weight:500;width:80px;transition:all .2s ease;}
+.synlab-menu .nav-item .icon{font-size:1.2rem;margin-bottom:2px;}
+.synlab-menu .nav-item:hover{color:#006d7a;transform:scale(1.05);}
+.synlab-menu .nav-item.active{color:#009bb3;font-weight:600;}
+
+/* 🔹 Modal centrado Synlab (ajuste tamaño completo) */
+.modal-backdrop{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,0.35);backdrop-filter:blur(2px);
+  display:none;align-items:center;justify-content:center;
+  z-index:1050;
+}
+.modal-synlab{
+  background:white;
+  border-radius:8px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.25);
+  width:90%;
+  max-width:1100px;          /* 🔹 ancho tipo Synlab */
+  min-height:80vh;           /* 🔹 alto visible */
+  display:flex;
+  flex-direction:column;
+  opacity:0;
+  transform:translateY(-20px);
+  transition:all .3s ease;
+}
+.modal-synlab.show{opacity:1;transform:translateY(0);}
+.modal-header{padding:12px 16px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;}
+.modal-header h5{margin:0;font-size:1rem;font-weight:600;}
+.modal-body{padding:16px;flex:1;overflow-y:auto;}
+.modal-close{cursor:pointer;font-size:1.2rem;color:#666;}
+.modal-close:hover{color:#000;}
+
+/* 🔹 Alert Synlab */
+.alert-synlab{
+  position:fixed;top:80px;right:20px;
+  background:#009bb3;color:white;
+  padding:10px 16px;border-radius:6px;
+  font-size:.9rem;box-shadow:0 2px 8px rgba(0,0,0,0.2);
+  opacity:0;transform:translateY(-10px);
+  transition:all .3s ease;z-index:1100;
+}
+.alert-synlab.show{opacity:1;transform:translateY(0);}
+
+/* 🔹 Ajustes generales */
+body{
+  background-color:#f8f9fc;font-family:'Segoe UI',sans-serif;
+  color:#222;margin:0;padding-top:72px;
+}
+@media(max-width:1100px){.grid{grid-template-columns:repeat(2,1fr)!important;}.col-3{grid-column:span 1!important;}}
+@media(max-width:600px){.grid{grid-template-columns:1fr!important;}}
+</style>
+</head>
+<body>
+
+<!-- ✅ Encabezado Synlab -->
+<nav class="synlab-menu">
+  <div class="logo">
+    <img src="{% static 'laboratorio/img/logo_synlab.png' %}" alt="Synlab">
+    <span>SynLab Local</span>
+  </div>
+
+  <a href="#" class="nav-item"><span class="icon">📊</span><span>Resultados</span></a>
+  <a href="#" id="btnNuevaOrden" class="nav-item"><span class="icon">🧾</span><span>Orden</span></a>
+  <a href="#" class="nav-item"><span class="icon">📚</span><span>Catálogo</span></a>
+  <a href="#" class="nav-item"><span class="icon">📈</span><span>Informes</span></a>
+  <a href="#" class="nav-item"><span class="icon">🧫</span><span>Seguimiento</span></a>
+  <a href="#" class="nav-item"><span class="icon">📦</span><span>Masivas</span></a>
+  <a href="#" class="nav-item"><span class="icon">💰</span><span>Presupuesto</span></a>
+</nav>
+
+<div class="container">
+  <!-- Filtros -->
+  <div class="card filtros">
+    <div class="card-body">
+      <div class="grid">
+        <div class="col-3"><label class="label">Desde</label><input type="date" class="input"/></div>
+        <div class="col-3"><label class="label">Hasta</label><input type="date" class="input"/></div>
+        <div class="col-3"><label class="label">Buscar: Orden</label><input type="search" class="input" placeholder="Buscar número de orden"/></div>
+        <div class="col-3"><label class="label">Buscar: cédula o nombre</label><input type="search" class="input" placeholder="Buscar paciente"/></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lista -->
+  <div id="ordenContainer" class="card lista">
+    <div class="list-head">
+      <span class="list-title">Lista de resultados</span>
+      <div class="list-right">
+        <span class="list-count">{{ ordenes.count }} registro(s) encontrados</span>
+      </div>
+    </div>
+
+    <div id="ordenList" class="list-body">
+      {% for orden in ordenes %}
+      <div class="item">
+        <div class="indice">{{ orden.numero_orden }}</div>
+        <div class="item-body">
+          <div class="nombre">{{ orden.paciente.nombre_completo }}</div>
+          <div class="row-meta">
+            <div class="meta">📅 {{ orden.fecha|date:"d/m/Y H:i" }}</div>
+            <div class="meta">🆔 {{ orden.paciente.documento_identidad }}</div>
+          </div>
+          <div class="acciones">
+            <a href="{% url 'detalle_orden' orden.id %}" class="action revisar">👁 Revisar</a>
+            <a href="{% url 'orden_pdf' orden.id %}" class="action pdf">📄 PDF</a>
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <p class="text-center py-4 text-muted">No hay órdenes registradas.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="footer">
+    <small>misAnalisisOnline V.4.0.1 — Desarrollado por Cubosoft ® (C) 2025</small>
+  </div>
+</div>
+
+<!-- 🔹 Modal Nueva Orden -->
+<div class="modal-backdrop" id="modalOrden">
+  <div class="modal-synlab">
+    <div class="modal-header">
+      <h5>Nueva Orden</h5>
+      <span class="modal-close" id="closeModal">✖</span>
+    </div>
+    <div class="modal-body" id="modalBody">
+      Cargando...
+    </div>
+  </div>
+</div>
+
+<!-- 🔹 Alerta flotante -->
+<div id="alertSynlab" class="alert-synlab">Orden creada correctamente</div>
+
+<script>
+$(document).ready(function(){
+
+  // Mostrar modal y cargar formulario
+  $("#btnNuevaOrden").on("click", function(e){
+    e.preventDefault();
+    var modal = $("#modalOrden"), box = $(".modal-synlab");
+    $(this).addClass("active");
+    modal.css("display","flex").hide().fadeIn(200);
+    setTimeout(()=>box.addClass("show"),50);
+
+    $.ajax({
+      url: "{% url 'nueva_orden' %}",
+      type: "GET",
+      success: function(data){
+        $("#modalBody").html(data);
+      },
+      error: function(){
+        $("#modalBody").html("<p>Error al cargar el formulario</p>");
+      }
+    });
+  });
+
+  // Cerrar modal
+  $("#closeModal, #modalOrden").on("click", function(e){
+    if(e.target !== this) return;
+    $(".modal-synlab").removeClass("show");
+    setTimeout(()=>$("#modalOrden").fadeOut(200),200);
+    $("#btnNuevaOrden").removeClass("active");
+  });
+
+  // Enviar formulario nueva orden por AJAX
+  $(document).on("submit", "#modalBody form", function(e){
+    e.preventDefault();
+    $.ajax({
+      url: "{% url 'nueva_orden' %}",
+      type: "POST",
+      data: $(this).serialize(),
+      success: function(){
+        $(".modal-synlab").removeClass("show");
+        setTimeout(()=>$("#modalOrden").fadeOut(200),200);
+        $("#alertSynlab").addClass("show");
+        setTimeout(()=>$("#alertSynlab").removeClass("show"),2500);
+        $("#ordenList").load(window.location.href + " #ordenList > *");
+      },
+      error: function(){
+        alert("Error al guardar la orden.");
+      }
+    });
+  });
+
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,26 @@
+{% extends "laboratorio/base.html" %}
+{% block title %}Resultados{% endblock %}
+{% block header %}Resultados de Orden {{ orden.numero_orden }}{% endblock %}
+{% block content %}
+<div class="card shadow-sm p-4 bg-white">
+  {% for ex in examenes %}
+  <h6 class="fw-bold">{{ ex.examen.nombre }}</h6>
+  <table class="table table-sm table-bordered">
+    <thead><tr><th>Parámetro</th><th>Valor</th><th>Unidad</th><th>Referencia</th><th>Validado</th></tr></thead>
+    <tbody>
+      {% for r in ex.resultados.all %}
+      <tr>
+        <td>{{ r.parametro }}</td>
+        <td>{{ r.valor }}</td>
+        <td>{{ r.unidad }}</td>
+        <td>{{ r.referencia }}</td>
+        <td>{% if r.validado %}✅{% else %}❌{% endif %}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="text-center text-muted">Sin resultados</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endfor %}
+</div>
+{% endblock %}

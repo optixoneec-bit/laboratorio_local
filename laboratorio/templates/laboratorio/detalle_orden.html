@@ -1,0 +1,28 @@
+{% extends "laboratorio/base.html" %}
+{% block title %}Detalle de Orden{% endblock %}
+{% block header %}Detalle de Orden {{ orden.numero_orden }}{% endblock %}
+{% block content %}
+<div class="card shadow-sm p-4 bg-white">
+  <h5>Paciente: {{ orden.paciente.nombre_completo }}</h5>
+  <p>Documento: {{ orden.paciente.documento_identidad }}</p>
+  <p>Estado: <span class="badge bg-info">{{ orden.estado }}</span></p>
+  <hr>
+  <table class="table table-sm table-striped">
+    <thead><tr><th>Examen</th><th>Estado</th><th>Precio</th></tr></thead>
+    <tbody>
+      {% for ex in examenes %}
+      <tr>
+        <td>{{ ex.examen.nombre }}</td>
+        <td>{{ ex.estado }}</td>
+        <td class="text-end">{{ ex.precio }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="3" class="text-center text-muted">Sin exámenes</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <div class="text-end">
+    <a href="{% url 'resultados_orden' orden.id %}" class="btn btn-primary">Ver Resultados</a>
+  </div>
+</div>
+{% endblock %}
