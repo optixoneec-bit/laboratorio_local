@@ -2,88 +2,88 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>{% block title %}SynLab Local{% endblock %}</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>{% block title %}SynLab Local{% endblock %}</title>
+<link rel="stylesheet" href="{% static 'laboratorio/css/estilo_ordenes.css' %}">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'laboratorio/css/estilo_ordenes.css' %}">
-  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<style>
+/* 🔹 Encabezado Synlab */
+.synlab-menu{
+  position:fixed;top:0;left:0;right:0;z-index:1000;
+  background:#f9f9f9;border-bottom:1px solid #dcdcdc;
+  display:flex;align-items:center;gap:2rem;
+  padding:6px 16px 4px 16px;box-sizing:border-box;
+}
+.synlab-menu .logo{display:flex;align-items:center;gap:.6rem;margin-right:1rem;}
+.synlab-menu .logo img{height:28px;}
+.synlab-menu .logo span{font-weight:600;color:#333;font-size:1rem;}
+.synlab-menu .nav-item{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;font-size:.78rem;color:#333;text-decoration:none;font-weight:500;
+  width:80px;transition:all .2s ease;
+}
+.synlab-menu .nav-item .icon{font-size:1.2rem;margin-bottom:2px;}
+.synlab-menu .nav-item:hover{color:#006d7a;transform:scale(1.05);}
+.synlab-menu .nav-item.active{color:#009bb3;font-weight:600;}
 
-  <style>
-    body {
-      background-color: #f8f9fc;
-      font-family: 'Segoe UI', sans-serif;
-      color: #222;
-    }
-    .navbar {
-      background-color: #009bb3;
-      color: white;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .navbar-brand {
-      font-weight: 600;
-      color: white !important;
-    }
-    .menu-synlab {
-      background-color: #fff;
-      border-bottom: 1px solid #dee2e6;
-      padding: 0.6rem 1rem;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: flex-start;
-      align-items: center;
-      gap: 1.8rem;
-    }
-    .menu-synlab a {
-      text-decoration: none;
-      color: #009bb3;
-      font-weight: 500;
-      font-size: 0.92rem;
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
-    .menu-synlab a:hover {
-      color: #037d90;
-      text-decoration: underline;
-    }
-    .content-wrapper {
-      max-width: 1280px;
-      margin: 20px auto;
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-      padding: 20px;
-    }
-  </style>
+/* 🔹 Ajustes generales */
+body{
+  background-color:#f8f9fc;font-family:'Segoe UI',sans-serif;
+  color:#222;margin:0;padding-top:72px;
+}
+.container{
+  max-width:1200px;margin:0 auto;padding:0 16px 60px;
+}
+.footer{
+  text-align:center;
+  font-size:12px;
+  color:#888;
+  margin-top:30px;
+}
+@media(max-width:1100px){
+  .grid{grid-template-columns:repeat(2,1fr)!important;}
+  .col-3{grid-column:span 1!important;}
+}
+@media(max-width:600px){
+  .grid{grid-template-columns:1fr!important;}
+}
+</style>
+{% block extra_head %}{% endblock %}
 </head>
 
 <body>
-  <nav class="navbar navbar-expand-lg navbar-dark px-4">
-    <a class="navbar-brand" href="#">🧪 SynLab Local</a>
-    <div class="collapse navbar-collapse">
-      <ul class="navbar-nav ms-auto">
-        <li class="nav-item"><a class="nav-link" href="#">Cerrar sesión</a></li>
-      </ul>
-    </div>
-  </nav>
 
-  <div class="menu-synlab">
-    <a href="#"><span>📊</span>Resultados</a>
-    <a href="#"><span>🧾</span>Orden de ingreso</a>
-    <a href="#"><span>📚</span>Catálogo</a>
-    <a href="#"><span>📈</span>Informes</a>
-    <a href="#"><span>🧫</span>Seguimiento de muestras</a>
-    <a href="#"><span>📦</span>Órdenes Masivas</a>
-    <a href="#"><span>💰</span>Presupuesto</a>
+<!-- ✅ Encabezado Synlab -->
+<nav class="synlab-menu">
+  <div class="logo">
+    <img src="{% static 'laboratorio/img/logo_synlab.png' %}" alt="Synlab">
+    <span>SynLab Local</span>
   </div>
 
-  <div class="content-wrapper">
-    {% block content %}
-    {% endblock %}
-  </div>
+  <a href="{% url 'lista_ordenes' %}" class="nav-item {% if request.resolver_match.url_name == 'lista_ordenes' %}active{% endif %}">
+    <span class="icon">📊</span><span>Resultados</span>
+  </a>
+  <a href="{% url 'nueva_orden' %}" class="nav-item {% if request.resolver_match.url_name == 'nueva_orden' %}active{% endif %}">
+    <span class="icon">🧾</span><span>Nueva Orden</span>
+  </a>
+  <a href="{% url 'catalogo_examenes' %}" class="nav-item {% if request.resolver_match.url_name == 'catalogo_examenes' %}active{% endif %}">
+    <span class="icon">📚</span><span>Catálogo</span>
+  </a>
+  <a href="#" class="nav-item"><span class="icon">📈</span><span>Informes</span></a>
+  <a href="#" class="nav-item"><span class="icon">🧫</span><span>Seguimiento</span></a>
+  <a href="#" class="nav-item"><span class="icon">📦</span><span>Masivas</span></a>
+  <a href="#" class="nav-item"><span class="icon">💰</span><span>Presupuesto</span></a>
+</nav>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<!-- ✅ Contenido dinámico -->
+<div class="container">
+  {% block content %}{% endblock %}
+  <div class="footer">
+    <small>misAnalisisOnline V.4.0.1 — Desarrollado por Cubosoft ® (C) 2025</small>
+  </div>
+</div>
+
 </body>
 </html>

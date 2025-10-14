@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% block title %}Catálogo de Exámenes{% endblock %}
+
+{% block extra_head %}
+<style>
+:root{
+  --slx-blue:#2d7bd8; --slx-cyan:#29a7a4; --slx-border:#e3e6ea; --slx-bg:#fff;
+  --slx-red:#e85a5e; --slx-green:#cdeedd; --slx-purple:#4b4bf7;
+}
+.slx-panel{background:var(--slx-bg);border:1px solid var(--slx-border);border-radius:10px;padding:16px;margin-bottom:20px;}
+.slx-title{background:var(--slx-blue);color:#fff;font-weight:700;padding:10px;border-radius:6px;margin-bottom:12px;text-transform:uppercase;}
+.slx-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:12px;}
+.slx-header h4{margin:0;font-weight:700;display:flex;align-items:center;gap:8px;color:#2d7bd8;}
+.slx-searchbar{display:flex;align-items:center;gap:8px;width:340px;}
+.slx-input{width:100%;border:1px solid var(--slx-border);border-radius:8px;padding:7px 10px;font-size:.9rem;}
+.slx-btn{display:inline-flex;align-items:center;gap:6px;font-size:.9rem;font-weight:600;border-radius:8px;padding:8px 14px;border:0;cursor:pointer;}
+.slx-btn--blue{background:#4b5cf6;color:#fff;}
+.slx-btn--gray{background:#e9edf3;color:#333;}
+.slx-btn--red{background:#ef696d;color:#fff;}
+.slx-btn:hover{opacity:.9;}
+.slx-tablewrap{border:1px solid var(--slx-border);border-radius:8px;overflow:hidden;}
+.slx-thead{display:grid;grid-template-columns:120px 1fr 200px 150px 140px;background:var(--slx-cyan);color:#fff;font-weight:700;font-size:.85rem;}
+.slx-thead>div{padding:8px 10px;border-right:1px solid rgba(255,255,255,.25);}
+.slx-row{display:grid;grid-template-columns:120px 1fr 200px 150px 140px;border-top:1px solid var(--slx-border);align-items:center;}
+.slx-row>div{padding:8px 10px;font-size:.9rem;}
+.slx-empty{padding:12px;color:#8e98a7;font-size:.85rem;text-align:center;}
+.slx-actions{display:flex;justify-content:center;gap:8px;}
+.slx-mini{font-size:.85rem;border-radius:6px;padding:6px 10px;cursor:pointer;}
+.slx-mini--edit{background:#eef5ff;color:#2d7bd8;border:1px solid #c4d7ff;}
+.slx-mini--del{background:#fff0f0;color:#d83a3a;border:1px solid #f1cccc;}
+/* ===== PAGINACIÓN SYNLAB ===== */
+.slx-pagination{display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-top:16px;flex-wrap:wrap;}
+.slx-page-btn{border:1px solid var(--slx-border);background:#fff;border-radius:6px;padding:6px 10px;font-size:.85rem;cursor:pointer;color:#333;}
+.slx-page-btn:hover{background:#e9f6f8;color:#009bb3;}
+.slx-page-btn.active{background:#009bb3;color:#fff;border-color:#009bb3;}
+.slx-page-info{font-size:.85rem;color:#666;margin-right:auto;padding-left:2px;}
+/* ===== Modal Synlab ===== */
+.modal-backdrop{
+  position:fixed;inset:0;background:rgba(0,0,0,.35);backdrop-filter:blur(2px);
+  display:none;align-items:center;justify-content:center;z-index:1050;
+}
+.modal-synlab{
+  background:#fff;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.25);
+  width:min(95vw, 480px);max-height:95vh;display:flex;flex-direction:column;overflow:hidden;
+  opacity:0;transform:translateY(-10px);transition:.25s ease;
+}
+.modal-synlab.show{opacity:1;transform:translateY(0);}
+.modal-header{padding:12px 16px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;}
+.modal-header h5{margin:0;font-size:1rem;font-weight:700;}
+.modal-close{cursor:pointer;font-size:1.1rem;color:#666;}
+.modal-body{padding:16px;display:flex;flex-direction:column;gap:10px;}
+.modal-body label{font-size:.85rem;font-weight:600;}
+.modal-body input{border:1px solid #d7dbe2;border-radius:8px;padding:8px;font-size:.9rem;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;border-top:1px solid #eee;padding:12px 16px;background:#fafafa;}
+.btn{border:0;border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer;}
+.btn-primary{background:#2d7bd8;color:#fff;}
+.btn-secondary{background:#e9edf3;color:#333;}
+.btn-danger{background:#ef696d;color:#fff;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="slx-panel">
+  <div class="slx-title">📚 Catálogo de Exámenes</div>
+
+  <div class="slx-header">
+    <div class="slx-searchbar">
+      <input type="search" id="buscarExamen" value="{{ query }}" class="slx-input" placeholder="🔍 Buscar por código o nombre...">
+    </div>
+    <form method="post" action="{% url 'catalogo_importar_excel' %}" enctype="multipart/form-data" class="d-flex align-items-center gap-2">
+      {% csrf_token %}
+      <input type="file" name="archivo" accept=".xlsx" required>
+      <button class="slx-btn slx-btn--blue">📤 Importar Excel</button>
+    </form>
+  </div>
+
+  <div id="tablaExamenes" class="slx-tablewrap">
+    <div class="slx-thead">
+      <div>Código</div>
+      <div>Nombre</div>
+      <div>Área</div>
+      <div style="text-align:right;">Precio</div>
+      <div style="text-align:center;">Acciones</div>
+    </div>
+
+    {% for e in examenes %}
+    <div class="slx-row" data-id="{{ e.id }}">
+      <div>{{ e.codigo }}</div>
+      <div>{{ e.nombre }}</div>
+      <div>{{ e.area }}</div>
+      <div style="text-align:right;">${{ e.precio|floatformat:2 }}</div>
+      <div class="slx-actions">
+        <button class="slx-mini slx-mini--edit btn-edit">✏️</button>
+        <button class="slx-mini slx-mini--del btn-del">🗑️</button>
+      </div>
+    </div>
+    {% empty %}
+    <div class="slx-empty">No hay exámenes registrados</div>
+    {% endfor %}
+  </div>
+
+  {% if examenes.has_other_pages %}
+  <div class="slx-pagination">
+    <div class="slx-page-info">
+      Página {{ examenes.number }} de {{ examenes.paginator.num_pages }}
+    </div>
+    {% if examenes.has_previous %}
+      <a href="?page={{ examenes.previous_page_number }}{% if query %}&q={{ query }}{% endif %}" class="slx-page-btn">← Anterior</a>
+    {% endif %}
+    {% for i in examenes.paginator.page_range %}
+      {% if i == examenes.number %}
+        <span class="slx-page-btn active">{{ i }}</span>
+      {% elif i >= examenes.number|add:-2 and i <= examenes.number|add:2 %}
+        <a href="?page={{ i }}{% if query %}&q={{ query }}{% endif %}" class="slx-page-btn">{{ i }}</a>
+      {% endif %}
+    {% endfor %}
+    {% if examenes.has_next %}
+      <a href="?page={{ examenes.next_page_number }}{% if query %}&q={{ query }}{% endif %}" class="slx-page-btn">Siguiente →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+
+<!-- 🔹 Modales (Editar / Eliminar) -->
+<div class="modal-backdrop" id="modalEditar" style="display:none;">
+  <div class="modal-synlab">
+    <div class="modal-header">
+      <h5>Editar Examen</h5>
+      <span class="modal-close" data-close="modalEditar">✖</span>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="editId">
+      <label>Código</label><input type="text" id="editCodigo">
+      <label>Nombre</label><input type="text" id="editNombre">
+      <label>Área</label><input type="text" id="editArea">
+      <label>Precio</label><input type="number" id="editPrecio" step="0.01" min="0">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" data-close="modalEditar">Cancelar</button>
+      <button class="btn btn-primary" id="guardarCambios">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalEliminar" style="display:none;">
+  <div class="modal-synlab">
+    <div class="modal-header">
+      <h5>Eliminar Examen</h5>
+      <span class="modal-close" data-close="modalEliminar">✖</span>
+    </div>
+    <div class="modal-body">
+      <p>¿Seguro que deseas eliminar este examen?</p>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" data-close="modalEliminar">Cancelar</button>
+      <button class="btn btn-danger" id="confirmarEliminar">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+$(function(){
+
+  // 🔹 Búsqueda global con debounce
+  let timer;
+  $('#buscarExamen').on('keyup', function(){
+    clearTimeout(timer);
+    const q = $(this).val();
+    timer = setTimeout(() => {
+      const url = new URL(window.location.href);
+      url.searchParams.set('q', q);
+      url.searchParams.delete('page');
+      window.location.href = url.toString();
+    }, 500); // medio segundo
+  });
+
+  // 🔹 Modal helpers
+  function abrirModal(id){ const m = $('#'+id); m.css('display','flex'); setTimeout(()=>m.find('.modal-synlab').addClass('show'),10);}
+  function cerrarModal(id){ const m = $('#'+id); m.find('.modal-synlab').removeClass('show'); setTimeout(()=>m.hide(),200); }
+  $('[data-close]').on('click',function(){ cerrarModal($(this).data('close')); });
+
+  let examenAEliminar = null;
+
+  // ✏️ Editar
+  $('.btn-edit').on('click', function(){
+    const row = $(this).closest('.slx-row');
+    $('#editId').val(row.data('id'));
+    $('#editCodigo').val(row.find('div:eq(0)').text().trim());
+    $('#editNombre').val(row.find('div:eq(1)').text().trim());
+    $('#editArea').val(row.find('div:eq(2)').text().trim());
+    $('#editPrecio').val(row.find('div:eq(3)').text().replace('$','').trim());
+    abrirModal('modalEditar');
+  });
+
+  $('#guardarCambios').on('click', function(){
+    const id = $('#editId').val();
+    $.post(`/catalogo/${id}/editar/`, {
+      'csrfmiddlewaretoken': '{{ csrf_token }}',
+      'codigo': $('#editCodigo').val(),
+      'nombre': $('#editNombre').val(),
+      'area': $('#editArea').val(),
+      'precio': $('#editPrecio').val()
+    }, function(resp){
+      if(resp.status === 'ok'){ location.reload(); }
+    });
+  });
+
+  // 🗑️ Eliminar
+  $('.btn-del').on('click', function(){
+    examenAEliminar = $(this).closest('.slx-row').data('id');
+    abrirModal('modalEliminar');
+  });
+
+  $('#confirmarEliminar').on('click', function(){
+    if(!examenAEliminar) return;
+    $.post(`/catalogo/${examenAEliminar}/eliminar/`, {
+      'csrfmiddlewaretoken':'{{ csrf_token }}'
+    }, function(resp){
+      if(resp.status === 'ok'){ location.reload(); }
+    });
+  });
+
+});
+</script>
+{% endblock %}

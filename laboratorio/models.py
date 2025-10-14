@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.db.models import Max
 
 
 class Paciente(models.Model):
@@ -11,6 +12,9 @@ class Paciente(models.Model):
     email = models.EmailField(blank=True, null=True)
     direccion = models.TextField(blank=True, null=True)
 
+    # ➕ Número de registro secuencial (empieza en 10001)
+    numero_registro = models.PositiveIntegerField(unique=True, editable=False, null=True, blank=True)
+
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
     creado_por = models.ForeignKey(User, related_name='paciente_creado_por', on_delete=models.SET_NULL, null=True, blank=True)
@@ -18,6 +22,13 @@ class Paciente(models.Model):
 
     def __str__(self):
         return f"{self.nombre_completo} ({self.documento_identidad})"
+
+    def save(self, *args, **kwargs):
+        # Asigna número consecutivo solo si no tiene
+        if self.numero_registro is None:
+            max_val = Paciente.objects.aggregate(m=Max('numero_registro'))['m'] or 10000
+            self.numero_registro = max_val + 1
+        super().save(*args, **kwargs)
 
 
 class Equipo(models.Model):

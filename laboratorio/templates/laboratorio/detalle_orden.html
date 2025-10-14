@@ -1,27 +1,43 @@
-{% extends "laboratorio/base.html" %}
-{% block title %}Detalle de Orden{% endblock %}
-{% block header %}Detalle de Orden {{ orden.numero_orden }}{% endblock %}
+{% extends "base.html" %}
+{% block title %}Detalle de Orden {{ orden.numero_orden }}{% endblock %}
+
 {% block content %}
 <div class="card shadow-sm p-4 bg-white">
-  <h5>Paciente: {{ orden.paciente.nombre_completo }}</h5>
-  <p>Documento: {{ orden.paciente.documento_identidad }}</p>
-  <p>Estado: <span class="badge bg-info">{{ orden.estado }}</span></p>
+  <h4 class="mb-3">🧾 Detalle de la Orden</h4>
+  <div class="mb-2"><strong>Paciente:</strong> {{ orden.paciente.nombre_completo }}</div>
+  <div class="mb-2"><strong>Documento:</strong> {{ orden.paciente.documento_identidad }}</div>
+  <div class="mb-3">
+    <strong>Estado:</strong>
+    <span class="badge bg-info text-dark">{{ orden.estado }}</span>
+  </div>
+
   <hr>
-  <table class="table table-sm table-striped">
-    <thead><tr><th>Examen</th><th>Estado</th><th>Precio</th></tr></thead>
+
+  <table class="table table-sm table-striped align-middle mb-4">
+    <thead>
+      <tr>
+        <th>Examen</th>
+        <th>Estado</th>
+        <th class="text-end">Precio</th>
+      </tr>
+    </thead>
     <tbody>
       {% for ex in examenes %}
       <tr>
         <td>{{ ex.examen.nombre }}</td>
         <td>{{ ex.estado }}</td>
-        <td class="text-end">{{ ex.precio }}</td>
+        <td class="text-end">${{ ex.precio|floatformat:2 }}</td>
       </tr>
       {% empty %}
-      <tr><td colspan="3" class="text-center text-muted">Sin exámenes</td></tr>
+      <tr>
+        <td colspan="3" class="text-center text-muted py-3">Sin exámenes registrados</td>
+      </tr>
       {% endfor %}
     </tbody>
   </table>
-  <div class="text-end">
+
+  <div class="d-flex justify-content-between">
+    <a href="{% url 'lista_ordenes' %}" class="btn btn-secondary">← Volver</a>
     <a href="{% url 'resultados_orden' orden.id %}" class="btn btn-primary">Ver Resultados</a>
   </div>
 </div>
