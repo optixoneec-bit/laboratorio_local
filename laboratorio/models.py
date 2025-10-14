@@ -12,7 +12,6 @@ class Paciente(models.Model):
     email = models.EmailField(blank=True, null=True)
     direccion = models.TextField(blank=True, null=True)
 
-    # ➕ Número de registro secuencial (empieza en 10001)
     numero_registro = models.PositiveIntegerField(unique=True, editable=False, null=True, blank=True)
 
     creado_en = models.DateTimeField(auto_now_add=True)
@@ -24,7 +23,6 @@ class Paciente(models.Model):
         return f"{self.nombre_completo} ({self.documento_identidad})"
 
     def save(self, *args, **kwargs):
-        # Asigna número consecutivo solo si no tiene
         if self.numero_registro is None:
             max_val = Paciente.objects.aggregate(m=Max('numero_registro'))['m'] or 10000
             self.numero_registro = max_val + 1
@@ -58,6 +56,7 @@ class Examen(models.Model):
     nombre = models.CharField(max_length=200)
     area = models.CharField(max_length=100)
     unidad = models.CharField(max_length=50, blank=True, null=True)
+    muestra = models.CharField(max_length=100, blank=True, null=True)  # 🧪 NUEVO CAMPO
     precio = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     referencia_synlab = models.CharField(max_length=50, blank=True, null=True)
     activo = models.BooleanField(default=True)

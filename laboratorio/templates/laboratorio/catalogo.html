@@ -19,9 +19,10 @@
 .slx-btn--red{background:#ef696d;color:#fff;}
 .slx-btn:hover{opacity:.9;}
 .slx-tablewrap{border:1px solid var(--slx-border);border-radius:8px;overflow:hidden;}
-.slx-thead{display:grid;grid-template-columns:120px 1fr 200px 150px 140px;background:var(--slx-cyan);color:#fff;font-weight:700;font-size:.85rem;}
+/* 6 columnas: Código | Nombre | Área | Tipo Muestra | Precio | Acciones */
+.slx-thead{display:grid;grid-template-columns:120px 1fr 200px 200px 150px 140px;background:var(--slx-cyan);color:#fff;font-weight:700;font-size:.85rem;}
 .slx-thead>div{padding:8px 10px;border-right:1px solid rgba(255,255,255,.25);}
-.slx-row{display:grid;grid-template-columns:120px 1fr 200px 150px 140px;border-top:1px solid var(--slx-border);align-items:center;}
+.slx-row{display:grid;grid-template-columns:120px 1fr 200px 200px 150px 140px;border-top:1px solid var(--slx-border);align-items:center;}
 .slx-row>div{padding:8px 10px;font-size:.9rem;}
 .slx-empty{padding:12px;color:#8e98a7;font-size:.85rem;text-align:center;}
 .slx-actions{display:flex;justify-content:center;gap:8px;}
@@ -41,7 +42,7 @@
 }
 .modal-synlab{
   background:#fff;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.25);
-  width:min(95vw, 480px);max-height:95vh;display:flex;flex-direction:column;overflow:hidden;
+  width:min(95vw, 520px);max-height:95vh;display:flex;flex-direction:column;overflow:hidden;
   opacity:0;transform:translateY(-10px);transition:.25s ease;
 }
 .modal-synlab.show{opacity:1;transform:translateY(0);}
@@ -67,11 +68,17 @@
     <div class="slx-searchbar">
       <input type="search" id="buscarExamen" value="{{ query }}" class="slx-input" placeholder="🔍 Buscar por código o nombre...">
     </div>
-    <form method="post" action="{% url 'catalogo_importar_excel' %}" enctype="multipart/form-data" class="d-flex align-items-center gap-2">
-      {% csrf_token %}
-      <input type="file" name="archivo" accept=".xlsx" required>
-      <button class="slx-btn slx-btn--blue">📤 Importar Excel</button>
-    </form>
+
+    <div style="display:flex; gap:10px; align-items:center;">
+      <form method="post" action="{% url 'catalogo_importar_excel' %}" enctype="multipart/form-data" class="d-flex align-items-center gap-2">
+        {% csrf_token %}
+        <input type="file" name="archivo" accept=".xlsx" required>
+        <button class="slx-btn slx-btn--blue">📤 Importar Excel</button>
+      </form>
+
+      {# Botón Eliminar Todos (opcional, si creaste la vista/URL) #}
+      <button type="button" id="btnEliminarTodos" class="slx-btn slx-btn--red">🧹 Eliminar Todos</button>
+    </div>
   </div>
 
   <div id="tablaExamenes" class="slx-tablewrap">
@@ -79,6 +86,7 @@
       <div>Código</div>
       <div>Nombre</div>
       <div>Área</div>
+      <div>Tipo Muestra</div>
       <div style="text-align:right;">Precio</div>
       <div style="text-align:center;">Acciones</div>
     </div>
@@ -88,10 +96,11 @@
       <div>{{ e.codigo }}</div>
       <div>{{ e.nombre }}</div>
       <div>{{ e.area }}</div>
+      <div>{{ e.muestra|default:"—" }}</div>
       <div style="text-align:right;">${{ e.precio|floatformat:2 }}</div>
       <div class="slx-actions">
-        <button class="slx-mini slx-mini--edit btn-edit">✏️</button>
-        <button class="slx-mini slx-mini--del btn-del">🗑️</button>
+        <button class="slx-mini slx-mini--edit btn-edit" title="Editar">✏️</button>
+        <button class="slx-mini slx-mini--del btn-del" title="Eliminar">🗑️</button>
       </div>
     </div>
     {% empty %}
@@ -121,7 +130,7 @@
   {% endif %}
 </div>
 
-<!-- 🔹 Modales (Editar / Eliminar) -->
+<!-- MODAL EDITAR -->
 <div class="modal-backdrop" id="modalEditar" style="display:none;">
   <div class="modal-synlab">
     <div class="modal-header">
@@ -133,6 +142,7 @@
       <label>Código</label><input type="text" id="editCodigo">
       <label>Nombre</label><input type="text" id="editNombre">
       <label>Área</label><input type="text" id="editArea">
+      <label>Tipo de muestra</label><input type="text" id="editMuestra" placeholder="p.ej. Sangre, Orina…">
       <label>Precio</label><input type="number" id="editPrecio" step="0.01" min="0">
     </div>
     <div class="modal-actions">
@@ -142,6 +152,7 @@
   </div>
 </div>
 
+<!-- MODAL ELIMINAR -->
 <div class="modal-backdrop" id="modalEliminar" style="display:none;">
   <div class="modal-synlab">
     <div class="modal-header">
@@ -161,17 +172,17 @@
 <script>
 $(function(){
 
-  // 🔹 Búsqueda global con debounce
+  // 🔹 Búsqueda global con debounce (redirige con ?q=)
   let timer;
   $('#buscarExamen').on('keyup', function(){
     clearTimeout(timer);
     const q = $(this).val();
     timer = setTimeout(() => {
       const url = new URL(window.location.href);
-      url.searchParams.set('q', q);
+      if(q) url.searchParams.set('q', q); else url.searchParams.delete('q');
       url.searchParams.delete('page');
       window.location.href = url.toString();
-    }, 500); // medio segundo
+    }, 400);
   });
 
   // 🔹 Modal helpers
@@ -185,10 +196,11 @@ $(function(){
   $('.btn-edit').on('click', function(){
     const row = $(this).closest('.slx-row');
     $('#editId').val(row.data('id'));
-    $('#editCodigo').val(row.find('div:eq(0)').text().trim());
-    $('#editNombre').val(row.find('div:eq(1)').text().trim());
-    $('#editArea').val(row.find('div:eq(2)').text().trim());
-    $('#editPrecio').val(row.find('div:eq(3)').text().replace('$','').trim());
+    $('#editCodigo').val(row.find('div:eq(0)').text().trim());   // Código
+    $('#editNombre').val(row.find('div:eq(1)').text().trim());   // Nombre
+    $('#editArea').val(row.find('div:eq(2)').text().trim());     // Área
+    $('#editMuestra').val(row.find('div:eq(3)').text().trim());  // Muestra
+    $('#editPrecio').val(row.find('div:eq(4)').text().replace('$','').trim()); // Precio
     abrirModal('modalEditar');
   });
 
@@ -199,13 +211,14 @@ $(function(){
       'codigo': $('#editCodigo').val(),
       'nombre': $('#editNombre').val(),
       'area': $('#editArea').val(),
+      'muestra': $('#editMuestra').val(),
       'precio': $('#editPrecio').val()
     }, function(resp){
       if(resp.status === 'ok'){ location.reload(); }
     });
   });
 
-  // 🗑️ Eliminar
+  // 🗑️ Eliminar individual
   $('.btn-del').on('click', function(){
     examenAEliminar = $(this).closest('.slx-row').data('id');
     abrirModal('modalEliminar');
@@ -217,6 +230,16 @@ $(function(){
       'csrfmiddlewaretoken':'{{ csrf_token }}'
     }, function(resp){
       if(resp.status === 'ok'){ location.reload(); }
+    });
+  });
+
+  // 🧹 Eliminar TODOS (si definiste la vista y URL)
+  $('#btnEliminarTodos').on('click', function(){
+    if(!confirm('⚠️ Esto eliminará TODOS los exámenes del catálogo. ¿Deseas continuar?')) return;
+    $.post("{% url 'catalogo_eliminar_todos_ajax' %}", {
+      'csrfmiddlewaretoken':'{{ csrf_token }}'
+    }, function(resp){
+      if(resp.status === 'ok'){ alert('Todos los exámenes fueron eliminados.'); location.reload(); }
     });
   });
 

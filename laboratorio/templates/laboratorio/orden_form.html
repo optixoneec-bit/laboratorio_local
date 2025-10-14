@@ -31,9 +31,13 @@
 .slx-searchbar{display:flex;align-items:center;gap:6px;margin-bottom:8px;position:relative;}
 .slx-mini-btn{border:1px solid #b6cdf7;background:#eff5ff;color:#2c59b9;padding:6px 8px;border-radius:8px;font-weight:600;font-size:.8rem;cursor:pointer;}
 .slx-tablewrap{border:1px solid var(--slx-border);border-radius:8px;overflow:hidden;}
-.slx-thead{display:grid;grid-template-columns:100px 1fr 100px 100px 100px;background:var(--slx-cyan);color:#fff;font-weight:700;font-size:.85rem;}
+.slx-thead{display:grid;grid-template-columns:80px 1fr 100px 100px 100px 60px;background:var(--slx-cyan);color:#fff;font-weight:700;font-size:.85rem;}
 .slx-thead>div{padding:6px 8px;border-right:1px solid rgba(255,255,255,.25);}
+.slx-row{display:grid;grid-template-columns:80px 1fr 100px 100px 100px 60px;align-items:center;padding:6px 8px;border-top:1px solid #e3e6ea;}
+.slx-row:hover{background:#f5faff;}
 .slx-empty{padding:12px;color:#8e98a7;font-size:.85rem;}
+.btn-del{background:#ef696d;color:#fff;border:0;border-radius:6px;padding:4px 8px;cursor:pointer;}
+.btn-del:hover{background:#d94b4e;}
 .slx-totalrow{display:grid;grid-template-columns:1fr 220px;border-top:1px solid var(--slx-border);}
 .slx-total{display:flex;justify-content:flex-end;gap:6px;align-items:center;padding:8px;font-weight:700;font-size:.9rem;}
 .slx-foot-title{background:#2d7bd8;color:#fff;padding:8px;border-radius:6px;font-weight:700;margin:12px 0 8px;font-size:.9rem;}
@@ -42,34 +46,14 @@
 .slx-big--blue{background:#4b5cf6;color:#fff;}
 .slx-big--green{background:var(--slx-green);color:#176e4a;}
 .slx-big--red{background:#ef696d;color:#fff;}
-.resultados-busqueda{
-  position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #ddd;
-  border-radius:8px;max-height:250px;overflow:auto;z-index:2000;box-shadow:0 4px 8px rgba(0,0,0,.1);
-}
-.resultado-item{
-  display:grid;grid-template-columns:100px 1fr 100px;
-  padding:6px 8px;font-size:.9rem;cursor:pointer;align-items:center;
-}
+.resultados-busqueda{position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #ddd;border-radius:8px;max-height:250px;overflow:auto;z-index:2000;box-shadow:0 4px 8px rgba(0,0,0,.1);}
+.resultado-item{display:grid;grid-template-columns:100px 1fr 100px;padding:6px 8px;font-size:.9rem;cursor:pointer;align-items:center;}
 .resultado-item:hover{background:#eaf3ff;}
 .resultado-item strong{color:#2d7bd8;}
-.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.35);backdrop-filter:blur(2px);display:none;align-items:center;justify-content:center;z-index:1050;}
-.modal-synlab{background:#fff;border-radius:10px;box-shadow:0 4px 14px rgba(0,0,0,.25);width:min(95vw, 720px);max-height:95vh;display:flex;flex-direction:column;overflow:hidden;opacity:0;transform:translateY(-10px);transition:.25s ease;}
-.modal-synlab.show{opacity:1;transform:translateY(0);}
-.modal-header{padding:12px 16px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;}
-.modal-header h5{margin:0;font-size:1rem;font-weight:700;}
-.modal-close{cursor:pointer;font-size:1.1rem;color:#666;}
-.modal-close:hover{color:#111;}
-.modal-body{padding:14px;flex:1;overflow:auto;}
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-.form-grid .full{grid-column:1 / -1;}
-.field{display:flex;flex-direction:column;gap:6px;}
-.field label{font-size:.85rem;font-weight:600;color:#333;}
-.field input, .field select, .field textarea{border:1px solid #d7dbe2;border-radius:8px;padding:10px;font-size:1rem;width:100%;box-sizing:border-box;}
-.modal-actions{display:flex;gap:10px;justify-content:flex-end;border-top:1px solid #eee;padding:12px 16px;background:#fafafa;}
-.btn{border:0;border-radius:8px;padding:10px 14px;font-weight:700;cursor:pointer;}
-.btn-primary{background:#2d7bd8;color:#fff;}
-.btn-secondary{background:#e9edf3;color:#333;}
-.btn-danger{background:#ef696d;color:#fff;}
+/* Sección de muestras y etiquetas */
+.slx-samples{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:flex-end;margin-top:10px;}
+.slx-sample-btn{border:1px solid #b6cdf7;background:#eff5ff;color:#2c59b9;padding:8px 10px;border-radius:8px;font-weight:600;font-size:.8rem;cursor:pointer;}
+.slx-sample-btn:hover{background:#dbe9ff;}
 @media (max-width:900px){.slx-grid{grid-template-columns:1fr;}}
 </style>
 {% endblock %}
@@ -80,22 +64,18 @@
   <div class="slx-grid">
     <aside class="slx-panel slx-left">
       <header class="slx-title">Datos del paciente</header>
-      <div class="slx-subhead">Datos del paciente</div>
-      <div class="slx-btn-row">
-        <button type="button" id="btnNuevoPaciente" class="slx-new-patient">+ Nuevo Paciente</button>
-      </div>
+      <div class="slx-btn-row"><button type="button" id="btnNuevoPaciente" class="slx-new-patient">+ Nuevo Paciente</button></div>
       <div class="slx-block">
         <label class="slx-label">Cédula:<span class="slx-req">*</span></label>
         <div class="slx-searchrow">
           <input type="text" id="campoDoc" name="documento_identidad" class="slx-input" placeholder="Cédula" required>
-          <button type="button" class="slx-iconbtn" aria-label="Buscar">🔍</button>
+          <button type="button" class="slx-iconbtn">🔍</button>
         </div>
       </div>
       <div class="slx-block">
         <label class="slx-label">Nombre completo:<span class="slx-req">*</span></label>
         <input type="text" id="campoNombre" name="nombre_completo" class="slx-input" placeholder="Nombre del paciente" required>
       </div>
-      <div class="slx-placeholder"></div>
       <div class="slx-block">
         <div class="slx-priority">
           <label class="slx-pri"><input type="radio" name="tipo" value="Urgente"><span>Urgente</span></label>
@@ -105,27 +85,20 @@
           <label class="slx-pri"><input type="radio" name="tipo" value="Rutina" checked><span>Rutina</span></label>
         </div>
       </div>
-      <div class="slx-block">
-        <label class="slx-label">Médico solicitante</label>
-        <input type="text" name="medico" class="slx-input" placeholder="Nombre del médico">
-      </div>
+      <div class="slx-block"><label class="slx-label">Médico solicitante</label><input type="text" name="medico" class="slx-input" placeholder="Nombre del médico"></div>
     </aside>
 
     <section class="slx-panel slx-right">
       <header class="slx-title">Información de la orden</header>
       <div class="slx-searchbar">
-        <div class="slx-lupa">🔎</div>
         <input type="text" class="slx-input slx-input--search" placeholder="Buscar Análisis">
-        <div class="slx-mini-actions">
-          <button type="button" class="slx-mini-btn">PERFILES</button>
-          <button type="button" class="slx-mini-btn">POR. GENERAL</button>
-        </div>
+        <div class="slx-mini-actions"><button type="button" class="slx-mini-btn">PERFILES</button><button type="button" class="slx-mini-btn">POR. GENERAL</button></div>
         <div class="resultados-busqueda" id="resultadosBusqueda" style="display:none;"></div>
       </div>
 
       <div class="slx-tablewrap">
         <div class="slx-thead">
-          <div>Código</div><div>Análisis</div><div>Estado</div><div>V. Paciente</div><div>V. Pospago</div>
+          <div>Código</div><div>Análisis</div><div>Estado</div><div>V. Paciente</div><div>V. Pospago</div><div></div>
         </div>
         <div class="slx-tbody" id="tbodyExamenes">
           <div class="slx-empty">No existen exámenes agregados</div>
@@ -133,87 +106,32 @@
         <div class="slx-totalrow"><div class="slx-total"><span>Total:</span><strong id="totalValor">$0.00</strong></div></div>
       </div>
 
+      <div class="slx-samples">
+        <button type="button" class="slx-sample-btn">🧾 Etiquetas</button>
+        <button type="button" class="slx-sample-btn">🧪 Suero Ayunas</button>
+        <button type="button" class="slx-sample-btn">💉 Sangre Total con EDTA</button>
+        <button type="button" class="slx-sample-btn">🧫 Urocultivo</button>
+        <button type="button" class="slx-sample-btn">🧫 Cultivo</button>
+      </div>
+
       <div class="slx-foot">
         <div class="slx-foot-title">Generalidades</div>
         <div class="slx-cta">
-          <button type="button" id="slxObs" class="slx-big slx-big--blue"><span>👁</span> Observaciones</button>
-          <button type="submit" class="slx-big slx-big--green"><span>💾</span> Guardar</button>
-          <button type="reset" class="slx-big slx-big--red"><span>🗑</span> Limpiar</button>
+          <button type="button" id="slxObs" class="slx-big slx-big--blue">👁 Observaciones</button>
+          <button type="submit" class="slx-big slx-big--green">💾 Guardar</button>
+          <button type="reset" class="slx-big slx-big--red">🗑 Limpiar</button>
         </div>
-        <div id="slxObsArea" class="slx-obs" hidden>
-          <textarea class="slx-input" name="observaciones" rows="3" placeholder="Escribe observaciones…"></textarea>
-        </div>
+        <div id="slxObsArea" class="slx-obs" hidden><textarea class="slx-input" name="observaciones" rows="3" placeholder="Escribe observaciones…"></textarea></div>
       </div>
     </section>
   </div>
 </form>
-
-<!-- Modal: Nuevo Paciente -->
-<div class="modal-backdrop" id="modalNuevoPaciente" style="display:none;">
-  <div class="modal-synlab">
-    <div class="modal-header"><h5>Nuevo Paciente</h5><span class="modal-close" data-close="modalNuevoPaciente">✖</span></div>
-    <div class="modal-body">
-      <form id="formNuevoPaciente" method="post">
-        {% csrf_token %}
-        <div class="form-grid">
-          <div class="field full"><label>Cédula / Pasaporte *</label><input type="text" name="documento_identidad" required></div>
-          <div class="field"><label>Nombres *</label><input type="text" name="nombres" required></div>
-          <div class="field"><label>Apellidos *</label><input type="text" name="apellidos" required></div>
-          <div class="field"><label>Fecha nacimiento</label><input type="date" name="fecha_nacimiento"></div>
-          <div class="field"><label>Género</label>
-            <select name="sexo"><option value="M">Masculino</option><option value="F">Femenino</option><option value="N">Prefiero no especificar</option></select>
-          </div>
-          <div class="field"><label>Teléfono</label><input type="text" name="telefono"></div>
-          <div class="field"><label>Correo</label><input type="email" name="email"></div>
-          <div class="field full"><label>Dirección</label><textarea name="direccion" rows="2"></textarea></div>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn btn-secondary" data-close="modalNuevoPaciente">Cancelar</button>
-          <button type="submit" class="btn btn-primary">CREAR PACIENTE</button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
 
 <script>
 (function(){
   const btnObs=document.getElementById('slxObs');
   const areaObs=document.getElementById('slxObsArea');
   if(btnObs&&areaObs){btnObs.addEventListener('click',()=>areaObs.toggleAttribute('hidden'));}
-
-  const abrirBtn=document.getElementById('btnNuevoPaciente');
-  const modal=document.getElementById('modalNuevoPaciente');
-  const closeEls=document.querySelectorAll('[data-close="modalNuevoPaciente"]');
-  if(abrirBtn && modal){abrirBtn.addEventListener('click',()=>{modal.style.display='flex';setTimeout(()=>modal.querySelector('.modal-synlab').classList.add('show'),10);});}
-  closeEls.forEach(el=>el.addEventListener('click',()=>{modal.querySelector('.modal-synlab').classList.remove('show');setTimeout(()=>modal.style.display='none',200);}));
-  modal && modal.addEventListener('click',e=>{if(e.target===modal){modal.querySelector('.modal-synlab').classList.remove('show');setTimeout(()=>modal.style.display='none',200);}});
-
-  const formNP=document.getElementById('formNuevoPaciente');
-  if(formNP){
-    formNP.addEventListener('submit',function(e){
-      e.preventDefault();
-      const data=$(this).serialize();
-      $.post("{% url 'paciente_nuevo_ajax' %}",data,function(resp){
-        if(resp.status==='ok'){
-          $('#campoDoc').val(resp.paciente.documento_identidad);
-          $('#campoNombre').val(resp.paciente.nombre_completo);
-          modal.querySelector('.modal-synlab').classList.remove('show');
-          setTimeout(()=>modal.style.display='none',200);
-        }else alert(resp.message||'No se pudo crear el paciente.');
-      }).fail(()=>alert('Error al crear el paciente.'));
-    });
-  }
-
-  $(".slx-iconbtn").on("click",function(){
-    const doc=$("#campoDoc").val().trim();
-    if(!doc){alert("Ingrese una cédula antes de buscar.");return;}
-    $.get("{% url 'buscar_paciente_ajax' %}",{documento_identidad:doc},function(resp){
-      if(resp.status==="ok")$("#campoNombre").val(resp.paciente.nombre_completo);
-      else if(resp.status==="not_found"){alert("Paciente no registrado.");$("#campoNombre").val("");}
-      else alert(resp.message||"Error en la búsqueda.");
-    }).fail(()=>alert("No se pudo realizar la búsqueda."));
-  });
 
   const inputBuscar=document.querySelector('.slx-input--search');
   const lista=document.getElementById('resultadosBusqueda');
@@ -247,10 +165,13 @@
     const codigo=item.dataset.codigo,nombre=item.dataset.nombre,precio=parseFloat(item.dataset.precio);
     const row=document.createElement('div');
     row.className='slx-row';
-    row.style.display='grid';
-    row.style.gridTemplateColumns='100px 1fr 100px 100px 100px';
-    row.style.borderTop='1px solid #e3e6ea';
-    row.innerHTML=`<div>${codigo}</div><div>${nombre}</div><div>Pendiente</div><div style="text-align:right;">$${precio.toFixed(2)}</div><div style="text-align:right;">$${precio.toFixed(2)}</div>`;
+    row.innerHTML=`
+      <div>${codigo}</div>
+      <div>${nombre}</div>
+      <div><span class="badge bg-info">Pendiente</span></div>
+      <div style="text-align:right;">$${precio.toFixed(2)}</div>
+      <div style="text-align:right;">$${precio.toFixed(2)}</div>
+      <div><button type="button" class="btn-del">✖</button></div>`;
     const empty=tbody.querySelector('.slx-empty');
     if(empty)empty.remove();
     tbody.appendChild(row);
@@ -260,14 +181,25 @@
     inputBuscar.value='';
   });
 
+  tbody.addEventListener('click',function(e){
+    if(e.target.classList.contains('btn-del')){
+      const row=e.target.closest('.slx-row');
+      const val=row.querySelectorAll('div')[3];
+      if(val){total-=parseFloat(val.textContent.replace('$',''))||0;}
+      totalElem.textContent=`$${total.toFixed(2)}`;
+      row.remove();
+      if(!tbody.querySelector('.slx-row'))
+        tbody.innerHTML='<div class="slx-empty">No existen exámenes agregados</div>';
+    }
+  });
+
   const form=document.getElementById('formNuevaOrden');
   form.addEventListener('reset',()=>{
     tbody.innerHTML='<div class="slx-empty">No existen exámenes agregados</div>';
     total=0;
     totalElem.textContent='$0.00';
-    areaObs.hidden=true; // también cierra observaciones
+    areaObs.hidden=true;
   });
-
 })();
 </script>
 {% endblock %}

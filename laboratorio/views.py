@@ -244,21 +244,13 @@ def buscar_paciente_ajax(request):
 @login_required
 def catalogo_examenes(request):
     examenes_list = Examen.objects.all().order_by('area', 'nombre')
-
-    # 🔹 Búsqueda integrada
     query = request.GET.get('q', '').strip()
     if query:
         examenes_list = examenes_list.filter(nombre__icontains=query) | examenes_list.filter(codigo__icontains=query)
-
-    # 🔹 Paginación Synlab
-    paginator = Paginator(examenes_list, 15)  # 15 por página
+    paginator = Paginator(examenes_list, 15)
     page_number = request.GET.get('page')
     examenes = paginator.get_page(page_number)
-
-    return render(request, 'laboratorio/catalogo.html', {
-        'examenes': examenes,
-        'query': query
-    })
+    return render(request, 'laboratorio/catalogo.html', {'examenes': examenes, 'query': query})
 
 
 @login_required
@@ -268,7 +260,6 @@ def catalogo_importar_excel(request):
         path = default_storage.save(f"tmp/{file.name}", file)
         full_path = default_storage.path(path)
         df = pd.read_excel(full_path)
-
         for _, row in df.iterrows():
             Examen.objects.update_or_create(
                 codigo=str(row['Código']).strip(),
@@ -276,13 +267,13 @@ def catalogo_importar_excel(request):
                     'nombre': str(row['Nombre']).strip(),
                     'area': str(row['Área']).strip(),
                     'precio': float(row['Precio']),
+                    'muestra': str(row.get('Tipo de Muestra', '')).strip() if 'Tipo de Muestra' in row else '',
                     'creado_por': request.user,
                 }
             )
         default_storage.delete(path)
         messages.success(request, "Archivo importado correctamente.")
         return redirect('catalogo_examenes')
-
     return redirect('catalogo_examenes')
 
 
@@ -290,8 +281,10 @@ def catalogo_importar_excel(request):
 def catalogo_editar_ajax(request, examen_id):
     examen = get_object_or_404(Examen, id=examen_id)
     if request.method == 'POST':
+        examen.codigo = request.POST.get('codigo', examen.codigo)
         examen.nombre = request.POST.get('nombre', examen.nombre)
         examen.area = request.POST.get('area', examen.area)
+        examen.muestra = request.POST.get('muestra', examen.muestra)
         examen.precio = request.POST.get('precio', examen.precio)
         examen.modificado_por = request.user
         examen.save()
@@ -306,25 +299,27 @@ def catalogo_eliminar_ajax(request, examen_id):
         examen.delete()
         return JsonResponse({'status': 'ok', 'message': 'Examen eliminado correctamente'})
     return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+
+@login_required
+def catalogo_eliminar_todos_ajax(request):
+    if request.method == 'POST':
+        Examen.objects.all().delete()
+        return JsonResponse({'status': 'ok', 'message': 'Todos los exámenes fueron eliminados correctamente'})
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+
 # ------------------------------
 # BUSCADOR GLOBAL DE EXÁMENES (AJAX)
 # ------------------------------
 
 @login_required
 def buscar_examenes_ajax(request):
-    """
-    Devuelve exámenes filtrados globalmente por nombre o código
-    mientras el usuario escribe en el campo de búsqueda de la orden.
-    """
     query = request.GET.get('q', '').strip()
     resultados = []
     if query:
-        examenes = Examen.objects.filter(
-            nombre__icontains=query
-        ) | Examen.objects.filter(
-            codigo__icontains=query
-        )
-        examenes = examenes.order_by('area', 'nombre')[:20]  # límite de 20 resultados
+        examenes = Examen.objects.filter(nombre__icontains=query) | Examen.objects.filter(codigo__icontains=query)
+        examenes = examenes.order_by('area', 'nombre')[:20]
         resultados = [
             {
                 'id': e.id,
@@ -332,6 +327,7 @@ def buscar_examenes_ajax(request):
                 'nombre': e.nombre,
                 'area': e.area,
                 'precio': float(e.precio),
+                'muestra': e.muestra or '',
             }
             for e in examenes
         ]
