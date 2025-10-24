@@ -1,3 +1,5 @@
+# laboratorio/views.py
+
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
 from django.contrib.auth.decorators import login_required
@@ -5,18 +7,21 @@ from django.utils import timezone
 from django.contrib import messages
 from django.template.loader import render_to_string
 from django.contrib.auth.views import redirect_to_login
+from django.template import TemplateDoesNotExist
 from io import BytesIO
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 import pandas as pd
 from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
+from django.views.decorators.http import require_http_methods
+from django.db import transaction
 
 from .models import Paciente, Orden, OrdenExamen, Resultado, Examen
 
 
 # ------------------------------
-# Gestión de resultados y validación
+# Gestión de resultados y validación (TU CÓDIGO ORIGINAL)
 # ------------------------------
 
 @login_required
@@ -83,7 +88,7 @@ def anular_validacion(request, resultado_id):
 
 
 # ------------------------------
-# Vistas principales del sistema
+# Vistas principales (TU CÓDIGO ORIGINAL)
 # ------------------------------
 
 @login_required
@@ -154,7 +159,7 @@ def orden_pdf(request, orden_id):
 
 
 # ------------------------------
-# Pacientes (AJAX)
+# Pacientes (AJAX) (TU CÓDIGO ORIGINAL) — (ARREGLADO SOLO SINTAXIS)
 # ------------------------------
 
 @login_required
@@ -238,7 +243,7 @@ def buscar_paciente_ajax(request):
 
 
 # ------------------------------
-# CATÁLOGO DE EXÁMENES
+# Catálogo (TU CÓDIGO ORIGINAL)
 # ------------------------------
 
 @login_required
@@ -310,7 +315,7 @@ def catalogo_eliminar_todos_ajax(request):
 
 
 # ------------------------------
-# BUSCADOR GLOBAL DE EXÁMENES (AJAX)
+# Buscador global (TU CÓDIGO ORIGINAL)
 # ------------------------------
 
 @login_required
@@ -332,3 +337,212 @@ def buscar_examenes_ajax(request):
             for e in examenes
         ]
     return JsonResponse({'status': 'ok', 'resultados': resultados})
+
+
+# ------------------------------
+# RESULTADOS (AJAX): burbuja / resumen / guardar (NUEVO, SIN ROMPER LO EXISTENTE)
+# ------------------------------
+
+@login_required
+@require_http_methods(["GET"])
+def burbuja_resultado_ajax(request):
+    oe_id = request.GET.get('orden_examen_id')
+    if not oe_id:
+        return JsonResponse({'status': 'error', 'message': 'Falta parámetro orden_examen_id'}, status=400)
+
+    orden_examen = get_object_or_404(
+        OrdenExamen.objects.select_related('orden', 'examen'),
+        id=oe_id
+    )
+    resultados = Resultado.objects.filter(orden_examen=orden_examen).order_by('id')
+
+    ctx = {
+        'orden_examen': orden_examen,
+        'examen': orden_examen.examen,
+        'paciente': getattr(orden_examen.orden, 'paciente', None),
+        'resultados': resultados,
+    }
+    html = render_to_string('laboratorio/partials/burbuja_resultado.html', context=ctx, request=request)
+    return JsonResponse({'status': 'ok', 'html': html})
+
+
+@login_required
+@require_http_methods(["POST"])
+def modal_resumen_resultados(request):
+    oe_id = request.POST.get('orden_examen_id')
+    if not oe_id:
+        return JsonResponse({'status': 'error', 'message': 'Falta orden_examen_id'}, status=400)
+
+    parametros = request.POST.getlist('parametro[]') or request.POST.getlist('parametro')
+    valores    = request.POST.getlist('valor[]')     or request.POST.getlist('valor')
+    unidades   = request.POST.getlist('unidad[]')    or request.POST.getlist('unidad')
+    refs       = request.POST.getlist('referencia[]')or request.POST.getlist('referencia')
+    ids_exist  = request.POST.getlist('resultado_id[]') or request.POST.getlist('resultado_id')
+
+    if not (parametros and valores):
+        return JsonResponse({'status': 'error', 'message': 'No hay datos de resultados para resumir'}, status=400)
+
+    n = max(len(parametros), len(valores), len(unidades or []), len(refs or []), len(ids_exist or []))
+    def at(lst, i): return lst[i] if (lst and i < len(lst)) else ''
+
+    items = []
+    for i in range(n):
+        p = (at(parametros, i) or '').strip()
+        v = (at(valores, i) or '').strip()
+        u = (at(unidades, i) or '').strip()
+        r = (at(refs, i) or '').strip()
+        rid = (at(ids_exist, i) or '').strip()
+        if p or v or u or r or rid:
+            items.append({'resultado_id': rid, 'parametro': p, 'valor': v, 'unidad': u, 'referencia': r})
+
+    orden_examen = get_object_or_404(
+        OrdenExamen.objects.select_related('orden', 'examen'),
+        id=oe_id
+    )
+    ctx = {
+        'orden_examen': orden_examen,
+        'examen': orden_examen.examen,
+        'paciente': getattr(orden_examen.orden, 'paciente', None),
+        'items': items,
+    }
+    html = render_to_string('laboratorio/partials/resumen_resultados.html', context=ctx, request=request)
+    return JsonResponse({'status': 'ok', 'html': html})
+
+
+@login_required
+@require_http_methods(["POST"])
+@transaction.atomic
+def guardar_resultados_ajax(request):
+    oe_id = request.POST.get('orden_examen_id')
+    if not oe_id:
+        return JsonResponse({'status': 'error', 'message': 'Falta orden_examen_id'}, status=400)
+
+    orden_examen = get_object_or_404(OrdenExamen, id=oe_id)
+
+    parametros = request.POST.getlist('parametro[]') or request.POST.getlist('parametro')
+    valores    = request.POST.getlist('valor[]')     or request.POST.getlist('valor')
+    unidades   = request.POST.getlist('unidad[]')    or request.POST.getlist('unidad')
+    refs       = request.POST.getlist('referencia[]')or request.POST.getlist('referencia')
+    ids_exist  = request.POST.getlist('resultado_id[]') or request.POST.getlist('resultado_id')
+
+    if not (parametros and valores):
+        return JsonResponse({'status': 'error', 'message': 'No hay datos de resultados para guardar'}, status=400)
+
+    n = max(len(parametros), len(valores), len(unidades or []), len(refs or []), len(ids_exist or []))
+    def at(lst, i): return lst[i] if (lst and i < len(lst)) else ''
+
+    creados, actualizados = 0, 0
+    for i in range(n):
+        p = (at(parametros, i) or '').strip()
+        v = (at(valores, i) or '').strip()
+        u = (at(unidades, i) or '').strip()
+        r = (at(refs, i) or '').strip()
+        rid = (at(ids_exist, i) or '').strip()
+
+        if not (p or v or u or r or rid):
+            continue
+
+        if rid:
+            try:
+                res = Resultado.objects.select_for_update().get(id=rid, orden_examen=orden_examen)
+                res.parametro = p
+                res.valor = v
+                res.unidad = u
+                res.referencia = r
+                res.save(update_fields=['parametro', 'valor', 'unidad', 'referencia'])
+                actualizados += 1
+            except Resultado.DoesNotExist:
+                Resultado.objects.create(
+                    orden_examen=orden_examen,
+                    parametro=p, valor=v, unidad=u, referencia=r
+                )
+                creados += 1
+        else:
+            Resultado.objects.create(
+                orden_examen=orden_examen,
+                parametro=p, valor=v, unidad=u, referencia=r
+            )
+            creados += 1
+
+    try:
+        resultados = Resultado.objects.filter(orden_examen=orden_examen).order_by('id')
+        ctx = {
+            'orden_examen': orden_examen,
+            'examen': getattr(orden_examen, 'examen', None),
+            'paciente': getattr(orden_examen.orden, 'paciente', None) if hasattr(orden_examen, 'orden') else None,
+            'resultados': resultados,
+        }
+        html = render_to_string('laboratorio/partials/tabla_resultados.html', context=ctx, request=request)
+        return JsonResponse({'status': 'ok', 'message': f'Guardado correcto. Creados: {creados}, actualizados: {actualizados}', 'html': html})
+    except Exception:
+        return JsonResponse({'status': 'ok', 'message': f'Guardado correcto. Creados: {creados}, actualizados: {actualizados}'})
+
+
+# Alias para mantener tu URL existente en urls.py
+@login_required
+@require_http_methods(["POST"])
+def guardar_resultados_orden(request):
+    return guardar_resultados_ajax(request)
+
+
+# ------------------------------
+# Home del módulo Resultados (NUEVO: acceso directo navegable)
+# ------------------------------
+@login_required
+def resultados_home(request):
+    """
+    Entrada al módulo 'Resultados'.
+    - ?orden_id=XX -> redirige a /ordenes/XX/resultados/
+    - Sin parámetro: lista las últimas 20 órdenes con links a resultados.
+    """
+    orden_id = request.GET.get('orden_id')
+    if orden_id:
+        return redirect('resultados_orden', orden_id=orden_id)
+
+    ordenes = Orden.objects.all().order_by('-fecha')[:20]
+    try:
+        return render(request, 'laboratorio/resultados_home.html', {'ordenes': ordenes})
+    except TemplateDoesNotExist:
+        items = []
+        for o in ordenes:
+            items.append(
+                f'<li>Orden {o.numero_orden} — {o.paciente.nombre_completo} '
+                f'(<a href="/ordenes/{o.id}/resultados/">ver resultados</a>)</li>'
+            )
+        html = (
+            '<h2>Módulo de Resultados</h2>'
+            '<p>Selecciona una orden para ver sus resultados:</p>'
+            f'<ul>{"".join(items) or "<li>No hay órdenes recientes.</li>"}</ul>'
+        )
+        return HttpResponse(html)
+
+
+# ------------------------------
+# NUEVA VISTA (AGREGADA SIN MODIFICAR NADA MÁS)
+# ------------------------------
+@login_required
+def resultados_lista(request):
+    # import local para no tocar encabezados existentes
+    from django.db.models import Q
+
+    q = (request.GET.get('q') or '').strip()
+
+    ordenes = (
+        Orden.objects
+        .filter(examenes__estado__in=['Pendiente', 'En proceso'])
+        .select_related('paciente')
+        .distinct()
+        .order_by('-fecha')
+    )
+
+    if q:
+        ordenes = ordenes.filter(
+            Q(paciente__nombre_completo__icontains=q) |
+            Q(paciente__documento_identidad__icontains=q) |
+            Q(numero_orden__icontains=q)
+        )
+
+    return render(request, 'laboratorio/resultados_lista.html', {
+        'ordenes': ordenes,
+        'query': q,
+    })

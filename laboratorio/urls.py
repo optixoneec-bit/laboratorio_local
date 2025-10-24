@@ -1,3 +1,5 @@
+# laboratorio/urls.py
+
 from django.urls import path
 from . import views
 
@@ -24,8 +26,6 @@ urlpatterns = [
     path('catalogo/importar/', views.catalogo_importar_excel, name='catalogo_importar_excel'),
     path('catalogo/<int:examen_id>/editar/', views.catalogo_editar_ajax, name='catalogo_editar_ajax'),
     path('catalogo/<int:examen_id>/eliminar/', views.catalogo_eliminar_ajax, name='catalogo_eliminar_ajax'),
-
-    # 🔹 NUEVA RUTA (la que faltaba)
     path('catalogo/eliminar_todos/', views.catalogo_eliminar_todos_ajax, name='catalogo_eliminar_todos_ajax'),
 
     # -----------------------------
@@ -39,4 +39,15 @@ urlpatterns = [
     path('resultado/<int:orden_examen_id>/registrar/', views.registrar_resultado, name='registrar_resultado'),
     path('resultado/<int:resultado_id>/validar/', views.validar_resultado, name='validar_resultado'),
     path('resultado/<int:resultado_id>/anular_validacion/', views.anular_validacion, name='anular_validacion'),
+
+    # -----------------------------
+    # Módulo Resultados (inicio)
+    # -----------------------------
+    path('resultados/', views.resultados_home, name='resultados_home'),
+    path('resultados/<int:orden_id>/', views.resultados_orden, name='resultados_orden'),
+
+    # -----------------------------
+    # Nueva vista principal para carga de resultados (AGREGADA)
+    # -----------------------------
+    path('resultados/lista/', views.resultados_lista, name='resultados_lista'),
 ]

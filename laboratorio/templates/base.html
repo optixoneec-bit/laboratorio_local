@@ -63,18 +63,26 @@ body{
   </div>
 
   <a href="{% url 'lista_ordenes' %}" class="nav-item {% if request.resolver_match.url_name == 'lista_ordenes' %}active{% endif %}">
-    <span class="icon">📊</span><span>Resultados</span>
+    <span class="icon">🏥</span><span>Inicio</span>
   </a>
   <a href="{% url 'nueva_orden' %}" class="nav-item {% if request.resolver_match.url_name == 'nueva_orden' %}active{% endif %}">
-    <span class="icon">🧾</span><span>Nueva Orden</span>
+    <span class="icon">🧾</span><span>Nueva</span>
   </a>
   <a href="{% url 'catalogo_examenes' %}" class="nav-item {% if request.resolver_match.url_name == 'catalogo_examenes' %}active{% endif %}">
     <span class="icon">📚</span><span>Catálogo</span>
   </a>
-  <a href="#" class="nav-item"><span class="icon">📈</span><span>Informes</span></a>
-  <a href="#" class="nav-item"><span class="icon">🧫</span><span>Seguimiento</span></a>
-  <a href="#" class="nav-item"><span class="icon">📦</span><span>Masivas</span></a>
-  <a href="#" class="nav-item"><span class="icon">💰</span><span>Presupuesto</span></a>
+  <a href="#" class="nav-item">
+    <span class="icon">📈</span><span>Informes</span>
+  </a>
+  <a href="{% url 'resultados_lista' %}" class="nav-item {% if request.resolver_match.url_name == 'resultados_lista' %}active{% endif %}">
+    <span class="icon">🧫</span><span>Resultados</span>
+  </a>
+  <a href="#" class="nav-item">
+    <span class="icon">✅</span><span>Validación</span>
+  </a>
+  <a href="#" class="nav-item">
+    <span class="icon">💰</span><span>Precios</span>
+  </a>
 </nav>
 
 <!-- ✅ Contenido dinámico -->

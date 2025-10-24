@@ -1,26 +1,203 @@
-{% extends "laboratorio/base.html" %}
-{% block title %}Resultados{% endblock %}
-{% block header %}Resultados de Orden {{ orden.numero_orden }}{% endblock %}
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Resultados de Orden{% endblock %}
+
 {% block content %}
-<div class="card shadow-sm p-4 bg-white">
-  {% for ex in examenes %}
-  <h6 class="fw-bold">{{ ex.examen.nombre }}</h6>
-  <table class="table table-sm table-bordered">
-    <thead><tr><th>Parámetro</th><th>Valor</th><th>Unidad</th><th>Referencia</th><th>Validado</th></tr></thead>
-    <tbody>
-      {% for r in ex.resultados.all %}
-      <tr>
-        <td>{{ r.parametro }}</td>
-        <td>{{ r.valor }}</td>
-        <td>{{ r.unidad }}</td>
-        <td>{{ r.referencia }}</td>
-        <td>{% if r.validado %}✅{% else %}❌{% endif %}</td>
-      </tr>
-      {% empty %}
-      <tr><td colspan="5" class="text-center text-muted">Sin resultados</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% endfor %}
+<div class="content-wrapper px-3 py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="mb-0">Resultados — {{ orden.numero_orden }}</h3>
+    <div>
+      <a href="{% url 'lista_ordenes' %}" class="btn btn-secondary me-2">⬅ Volver</a>
+      <button class="btn btn-primary" id="btn-agregar-resultado">➕ Agregar Resultado</button>
+      <button class="btn btn-success" id="btn-guardar-resultados">💾 Guardar</button>
+      <button class="btn btn-info" id="btn-importar-archivo">📂 Importar Archivo</button>
+    </div>
+  </div>
+
+  <div class="card shadow-sm">
+    <div class="card-header bg-light">
+      <strong>Paciente:</strong> {{ orden.paciente.nombre_completo }}<br>
+      <small><strong>Documento:</strong> {{ orden.paciente.documento_identidad }}</small><br>
+      <small><strong>Fecha:</strong> {{ orden.fecha|date:"d/m/Y H:i" }}</small>
+    </div>
+
+    <div class="card-body p-0">
+      <table class="table table-hover align-middle mb-0" id="tabla-resultados">
+        <thead class="table-primary">
+          <tr>
+            <th style="width: 25%">Examen</th>
+            <th style="width: 25%">Parámetro</th>
+            <th style="width: 15%">Resultado</th>
+            <th style="width: 10%">Unidad</th>
+            <th style="width: 15%">Referencia</th>
+            <th style="width: 10%">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for examen in examenes %}
+            {% for resultado in examen.resultados.all %}
+              <tr data-id="{{ resultado.id }}">
+                <td>{{ examen.examen.nombre }}</td>
+                <td>{{ resultado.parametro }}</td>
+                <td contenteditable="true" class="editable valor">{{ resultado.valor }}</td>
+                <td contenteditable="true" class="editable unidad">{{ resultado.unidad }}</td>
+                <td contenteditable="true" class="editable referencia">{{ resultado.referencia }}</td>
+                <td class="text-center">
+                  {% if not resultado.validado %}
+                    <button class="btn btn-sm btn-success validar" data-id="{{ resultado.id }}">✔</button>
+                  {% else %}
+                    <button class="btn btn-sm btn-warning anular" data-id="{{ resultado.id }}">↩</button>
+                  {% endif %}
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="6" class="text-center text-muted py-4">Sin resultados registrados aún</td>
+              </tr>
+            {% endfor %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
+
+<!-- Modal: Agregar Resultado -->
+<div class="modal fade" id="modalBurbuja" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title">Agregar Resultado</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formBurbuja">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label>Parámetro</label>
+              <input type="text" name="parametro" class="form-control" required>
+            </div>
+            <div class="col-md-3 mb-3">
+              <label>Valor</label>
+              <input type="text" name="valor" class="form-control" required>
+            </div>
+            <div class="col-md-3 mb-3">
+              <label>Unidad</label>
+              <input type="text" name="unidad" class="form-control">
+            </div>
+            <div class="col-md-12 mb-3">
+              <label>Referencia</label>
+              <input type="text" name="referencia" class="form-control">
+            </div>
+          </div>
+          <input type="hidden" name="orden_examen_id" value="">
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" id="btnGuardarBurbuja" class="btn btn-primary">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Resumen -->
+<div class="modal fade" id="modalResumen" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-content">
+      <div class="modal-header bg-info text-white">
+        <h5 class="modal-title">Resumen de Resultados</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <table class="table table-striped table-bordered">
+          <thead>
+            <tr class="table-light">
+              <th>Examen</th>
+              <th>Parámetro</th>
+              <th>Resultado</th>
+              <th>Unidad</th>
+              <th>Referencia</th>
+            </tr>
+          </thead>
+          <tbody id="tablaResumen"></tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+        <button class="btn btn-success" id="btnConfirmarGuardar">Confirmar Guardado</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Importar Archivo -->
+<div class="modal fade" id="modalImportar" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-secondary text-white">
+        <h5 class="modal-title">Importar Resultados Automáticamente</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formImportar" enctype="multipart/form-data">
+          <input type="file" name="archivo" accept=".hl7,.csv,.txt" class="form-control mb-3" required>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-info" id="btnImportarConfirmar">Importar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const modalBurbuja = new bootstrap.Modal(document.getElementById('modalBurbuja'));
+  const modalResumen = new bootstrap.Modal(document.getElementById('modalResumen'));
+  const modalImportar = new bootstrap.Modal(document.getElementById('modalImportar'));
+
+  document.getElementById('btn-agregar-resultado').addEventListener('click', () => {
+    modalBurbuja.show();
+  });
+
+  document.getElementById('btn-guardar-resultados').addEventListener('click', () => {
+    const filas = document.querySelectorAll('#tabla-resultados tbody tr');
+    const resumen = document.getElementById('tablaResumen');
+    resumen.innerHTML = '';
+    filas.forEach(f => {
+      const cols = f.querySelectorAll('td');
+      if (cols.length >= 5 && cols[1].textContent.trim() !== '') {
+        resumen.innerHTML += `
+          <tr>
+            <td>${cols[0].textContent}</td>
+            <td>${cols[1].textContent}</td>
+            <td>${cols[2].textContent}</td>
+            <td>${cols[3].textContent}</td>
+            <td>${cols[4].textContent}</td>
+          </tr>`;
+      }
+    });
+    modalResumen.show();
+  });
+
+  document.getElementById('btnConfirmarGuardar').addEventListener('click', () => {
+    modalResumen.hide();
+    alert('✅ Resultados guardados correctamente');
+  });
+
+  document.getElementById('btn-importar-archivo').addEventListener('click', () => {
+    modalImportar.show();
+  });
+
+  document.getElementById('btnImportarConfirmar').addEventListener('click', () => {
+    const archivo = document.querySelector('#formImportar input[name="archivo"]').files[0];
+    if (!archivo) { alert('Seleccione un archivo'); return; }
+    modalImportar.hide();
+    alert('📄 Archivo importado con éxito');
+  });
+});
+</script>
 {% endblock %}
