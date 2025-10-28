@@ -1,202 +1,210 @@
 {% extends "base.html" %}
-{% load static %}
+{% block title %}Cargar Resultados — {{ orden.numero_orden }}{% endblock %}
 
-{% block title %}Resultados de Orden{% endblock %}
+{% block extra_head %}
+<style>
+:root{
+  --slx-blue:#2d7bd8;
+  --slx-cyan:#29a7a4;
+  --slx-border:#e3e6ea;
+  --slx-bg:#fff;
+  --slx-gray:#8e98a7;
+  --slx-red:#e85a5e;
+  --slx-green:#2fa36a;
+}
+.slx-card{
+  background:var(--slx-bg);
+  border:1px solid var(--slx-border);
+  border-radius:12px;
+  padding:18px 20px;
+  box-shadow:0 2px 6px rgba(0,0,0,.04);
+}
+.slx-title{
+  background:var(--slx-blue);
+  color:#fff;
+  font-weight:700;
+  padding:10px 14px;
+  border-radius:8px;
+  margin-bottom:14px;
+  text-transform:uppercase;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.slx-title span.icon{font-size:1.2rem;}
+.slx-btn{
+  background:var(--slx-blue);
+  color:#fff;
+  border:0;
+  border-radius:8px;
+  padding:8px 14px;
+  font-weight:600;
+  cursor:pointer;
+  transition:background .2s ease;
+}
+.slx-btn:hover{ background:#1f66c2; }
+.slx-btn.green{ background:var(--slx-green); }
+.slx-btn.green:hover{ background:#248e5a; }
+.slx-btn.gray{ background:#ddd; color:#333; }
+.slx-area{
+  margin-top:22px;
+  border:1px solid var(--slx-border);
+  border-radius:10px;
+  overflow:hidden;
+}
+.slx-area-header{
+  background:var(--slx-cyan);
+  color:#fff;
+  font-weight:700;
+  padding:8px 12px;
+  text-transform:uppercase;
+  font-size:.9rem;
+}
+.slx-table{
+  width:100%;
+  border-collapse:collapse;
+}
+.slx-table th{
+  background:#f9fafb;
+  text-align:left;
+  padding:8px;
+  border-bottom:1px solid var(--slx-border);
+  font-size:.85rem;
+  color:#444;
+}
+.slx-table td{
+  padding:8px;
+  border-bottom:1px solid var(--slx-border);
+  font-size:.9rem;
+  vertical-align:middle;
+}
+.slx-input{
+  width:100%;
+  border:1px solid var(--slx-border);
+  border-radius:6px;
+  padding:6px 8px;
+  font-size:.85rem;
+}
+.icon-flag{font-weight:bold;}
+.icon-flag.up{color:var(--slx-red);}
+.icon-flag.down{color:#d97706;}
+.icon-flag.ok{color:var(--slx-green);}
+.text-muted{color:var(--slx-gray);}
+.alert-success{
+  background:#d1fae5;
+  border:1px solid #34d399;
+  color:#065f46;
+  padding:6px 10px;
+  border-radius:6px;
+  margin-top:10px;
+  font-size:.85rem;
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="content-wrapper px-3 py-4">
-  <div class="d-flex justify-content-between align-items-center mb-4">
-    <h3 class="mb-0">Resultados — {{ orden.numero_orden }}</h3>
-    <div>
-      <a href="{% url 'lista_ordenes' %}" class="btn btn-secondary me-2">⬅ Volver</a>
-      <button class="btn btn-primary" id="btn-agregar-resultado">➕ Agregar Resultado</button>
-      <button class="btn btn-success" id="btn-guardar-resultados">💾 Guardar</button>
-      <button class="btn btn-info" id="btn-importar-archivo">📂 Importar Archivo</button>
-    </div>
+<div class="slx-card">
+  <div class="slx-title"><span class="icon">🧪</span> CARGA DE RESULTADOS — {{ orden.numero_orden }}</div>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+    <a href="{% url 'resultados_lista' %}" class="slx-btn gray">← Volver</a>
+    <button class="slx-btn green" id="btnGuardar">💾 Guardar Cambios</button>
   </div>
 
-  <div class="card shadow-sm">
-    <div class="card-header bg-light">
-      <strong>Paciente:</strong> {{ orden.paciente.nombre_completo }}<br>
-      <small><strong>Documento:</strong> {{ orden.paciente.documento_identidad }}</small><br>
-      <small><strong>Fecha:</strong> {{ orden.fecha|date:"d/m/Y H:i" }}</small>
-    </div>
+  <p style="margin:0 0 14px;color:#555;font-size:.9rem;">
+    Paciente: <strong>{{ orden.paciente.nombre_completo }}</strong> &nbsp; | &nbsp;
+    Documento: <strong>{{ orden.paciente.documento_identidad }}</strong> &nbsp; | &nbsp;
+    Fecha: <strong>{{ orden.fecha|date:"d/m/Y H:i" }}</strong>
+  </p>
 
-    <div class="card-body p-0">
-      <table class="table table-hover align-middle mb-0" id="tabla-resultados">
-        <thead class="table-primary">
+  {% regroup examenes by examen.area as examenes_por_area %}
+  {% for area in examenes_por_area %}
+    <div class="slx-area">
+      <div class="slx-area-header">{{ area.grouper }}</div>
+      <table class="slx-table">
+        <thead>
           <tr>
-            <th style="width: 25%">Examen</th>
-            <th style="width: 25%">Parámetro</th>
-            <th style="width: 15%">Resultado</th>
-            <th style="width: 10%">Unidad</th>
-            <th style="width: 15%">Referencia</th>
-            <th style="width: 10%">Acciones</th>
+            <th style="width:25%">Parámetro</th>
+            <th style="width:12%">Resultado</th>
+            <th style="width:10%">Unidad</th>
+            <th style="width:18%">Referencia</th>
+            <th style="width:20%">Método</th>
+            <th style="width:15%">Observaciones</th>
+            <th style="width:5%">✔</th>
           </tr>
         </thead>
         <tbody>
-          {% for examen in examenes %}
-            {% for resultado in examen.resultados.all %}
-              <tr data-id="{{ resultado.id }}">
-                <td>{{ examen.examen.nombre }}</td>
-                <td>{{ resultado.parametro }}</td>
-                <td contenteditable="true" class="editable valor">{{ resultado.valor }}</td>
-                <td contenteditable="true" class="editable unidad">{{ resultado.unidad }}</td>
-                <td contenteditable="true" class="editable referencia">{{ resultado.referencia }}</td>
-                <td class="text-center">
-                  {% if not resultado.validado %}
-                    <button class="btn btn-sm btn-success validar" data-id="{{ resultado.id }}">✔</button>
-                  {% else %}
-                    <button class="btn btn-sm btn-warning anular" data-id="{{ resultado.id }}">↩</button>
-                  {% endif %}
-                </td>
-              </tr>
-            {% empty %}
-              <tr>
-                <td colspan="6" class="text-center text-muted py-4">Sin resultados registrados aún</td>
+        {% for ex in area.list %}
+          {% if ex.resultados.exists %}
+            {% for r in ex.resultados.all %}
+              <tr data-id="{{ r.id }}">
+                <td>{{ r.parametro }}</td>
+                <td><input type="text" class="slx-input campo-valor" value="{{ r.valor }}"></td>
+                <td><input type="text" class="slx-input campo-unidad" value="{{ r.unidad }}"></td>
+                <td><input type="text" class="slx-input campo-ref" value="{{ r.referencia }}"></td>
+                <td><input type="text" class="slx-input campo-metodo" value="{{ r.metodo }}"></td>
+                <td><input type="text" class="slx-input campo-obs" value="{{ r.observacion }}"></td>
+                <td style="text-align:center;"><button class="slx-btn green btn-save" data-id="{{ r.id }}">✔</button></td>
               </tr>
             {% endfor %}
-          {% endfor %}
+          {% else %}
+              <tr data-ordenex="{{ ex.id }}">
+                <td colspan="7" class="text-muted">Sin parámetros cargados para {{ ex.examen.nombre }}</td>
+              </tr>
+          {% endif %}
+        {% endfor %}
         </tbody>
       </table>
     </div>
-  </div>
-</div>
+  {% empty %}
+    <p class="text-muted">No hay exámenes en esta orden.</p>
+  {% endfor %}
 
-<!-- Modal: Agregar Resultado -->
-<div class="modal fade" id="modalBurbuja" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content">
-      <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title">Agregar Resultado</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <form id="formBurbuja">
-          <div class="row">
-            <div class="col-md-6 mb-3">
-              <label>Parámetro</label>
-              <input type="text" name="parametro" class="form-control" required>
-            </div>
-            <div class="col-md-3 mb-3">
-              <label>Valor</label>
-              <input type="text" name="valor" class="form-control" required>
-            </div>
-            <div class="col-md-3 mb-3">
-              <label>Unidad</label>
-              <input type="text" name="unidad" class="form-control">
-            </div>
-            <div class="col-md-12 mb-3">
-              <label>Referencia</label>
-              <input type="text" name="referencia" class="form-control">
-            </div>
-          </div>
-          <input type="hidden" name="orden_examen_id" value="">
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button type="button" id="btnGuardarBurbuja" class="btn btn-primary">Guardar</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal: Resumen -->
-<div class="modal fade" id="modalResumen" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-xl">
-    <div class="modal-content">
-      <div class="modal-header bg-info text-white">
-        <h5 class="modal-title">Resumen de Resultados</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <table class="table table-striped table-bordered">
-          <thead>
-            <tr class="table-light">
-              <th>Examen</th>
-              <th>Parámetro</th>
-              <th>Resultado</th>
-              <th>Unidad</th>
-              <th>Referencia</th>
-            </tr>
-          </thead>
-          <tbody id="tablaResumen"></tbody>
-        </table>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-        <button class="btn btn-success" id="btnConfirmarGuardar">Confirmar Guardado</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Modal: Importar Archivo -->
-<div class="modal fade" id="modalImportar" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header bg-secondary text-white">
-        <h5 class="modal-title">Importar Resultados Automáticamente</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <form id="formImportar" enctype="multipart/form-data">
-          <input type="file" name="archivo" accept=".hl7,.csv,.txt" class="form-control mb-3" required>
-        </form>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-        <button class="btn btn-info" id="btnImportarConfirmar">Importar</button>
-      </div>
-    </div>
-  </div>
+  <div id="alerta" class="alert-success" style="display:none;">✅ Cambios guardados correctamente.</div>
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-  const modalBurbuja = new bootstrap.Modal(document.getElementById('modalBurbuja'));
-  const modalResumen = new bootstrap.Modal(document.getElementById('modalResumen'));
-  const modalImportar = new bootstrap.Modal(document.getElementById('modalImportar'));
+document.addEventListener('DOMContentLoaded',()=>{
+  const alerta=document.getElementById('alerta');
+  document.querySelectorAll('.btn-save').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const row=btn.closest('tr');
+      const id=btn.dataset.id;
+      const valor=row.querySelector('.campo-valor').value;
+      const unidad=row.querySelector('.campo-unidad').value;
+      const ref=row.querySelector('.campo-ref').value;
+      const metodo=row.querySelector('.campo-metodo').value;
+      const obs=row.querySelector('.campo-obs').value;
+      const csrf=document.querySelector('[name=csrfmiddlewaretoken]').value;
 
-  document.getElementById('btn-agregar-resultado').addEventListener('click', () => {
-    modalBurbuja.show();
-  });
-
-  document.getElementById('btn-guardar-resultados').addEventListener('click', () => {
-    const filas = document.querySelectorAll('#tabla-resultados tbody tr');
-    const resumen = document.getElementById('tablaResumen');
-    resumen.innerHTML = '';
-    filas.forEach(f => {
-      const cols = f.querySelectorAll('td');
-      if (cols.length >= 5 && cols[1].textContent.trim() !== '') {
-        resumen.innerHTML += `
-          <tr>
-            <td>${cols[0].textContent}</td>
-            <td>${cols[1].textContent}</td>
-            <td>${cols[2].textContent}</td>
-            <td>${cols[3].textContent}</td>
-            <td>${cols[4].textContent}</td>
-          </tr>`;
-      }
+      fetch("{% url 'guardar_resultados_ajax' %}",{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'X-CSRFToken':csrf
+        },
+        body:JSON.stringify({
+          id:id,
+          valor:valor,
+          unidad:unidad,
+          referencia:ref,
+          metodo:metodo,
+          observacion:obs
+        })
+      })
+      .then(r=>r.json())
+      .then(data=>{
+        alerta.style.display='block';
+        alerta.textContent='✅ '+data.message;
+        setTimeout(()=>{alerta.style.display='none';},2500);
+      })
+      .catch(()=>{
+        alerta.style.display='block';
+        alerta.textContent='❌ Error al guardar resultado.';
+        alerta.style.background='#fee2e2';
+        setTimeout(()=>{alerta.style.display='none';},2500);
+      });
     });
-    modalResumen.show();
-  });
-
-  document.getElementById('btnConfirmarGuardar').addEventListener('click', () => {
-    modalResumen.hide();
-    alert('✅ Resultados guardados correctamente');
-  });
-
-  document.getElementById('btn-importar-archivo').addEventListener('click', () => {
-    modalImportar.show();
-  });
-
-  document.getElementById('btnImportarConfirmar').addEventListener('click', () => {
-    const archivo = document.querySelector('#formImportar input[name="archivo"]').files[0];
-    if (!archivo) { alert('Seleccione un archivo'); return; }
-    modalImportar.hide();
-    alert('📄 Archivo importado con éxito');
   });
 });
 </script>

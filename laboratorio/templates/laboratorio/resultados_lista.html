@@ -1,84 +1,153 @@
-<!-- templates/laboratorio/resultados_lista.html -->
 {% extends "base.html" %}
-
 {% block title %}Resultados{% endblock %}
 
+{% block extra_head %}
+<style>
+:root{
+  --slx-blue:#2d7bd8;
+  --slx-cyan:#29a7a4;
+  --slx-border:#e3e6ea;
+  --slx-bg:#fff;
+  --slx-gray:#8e98a7;
+}
+.slx-card{
+  background:var(--slx-bg);
+  border:1px solid var(--slx-border);
+  border-radius:12px;
+  padding:16px 20px;
+  box-shadow:0 2px 6px rgba(0,0,0,.04);
+}
+.slx-title{
+  background:var(--slx-blue);
+  color:#fff;
+  font-weight:700;
+  padding:10px 14px;
+  border-radius:8px;
+  margin-bottom:14px;
+  text-transform:uppercase;
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.slx-title span.icon{
+  font-size:1.2rem;
+}
+.slx-table{
+  width:100%;
+  border-collapse:collapse;
+  border:1px solid var(--slx-border);
+  border-radius:8px;
+  overflow:hidden;
+}
+.slx-table th{
+  background:var(--slx-cyan);
+  color:#fff;
+  text-align:left;
+  padding:10px;
+  font-size:.9rem;
+}
+.slx-table td{
+  padding:10px;
+  border-top:1px solid var(--slx-border);
+  font-size:.9rem;
+  vertical-align:middle;
+}
+.slx-table tbody tr:hover{
+  background:#f7fbff;
+}
+.slx-searchbar{
+  display:flex;
+  gap:10px;
+  margin-bottom:18px;
+}
+.slx-input{
+  flex:1;
+  border:1px solid var(--slx-border);
+  border-radius:8px;
+  padding:8px 10px;
+  font-size:.9rem;
+}
+.slx-btn{
+  background:var(--slx-blue);
+  color:#fff;
+  border:0;
+  border-radius:8px;
+  padding:8px 14px;
+  font-weight:600;
+  cursor:pointer;
+  transition:background .2s ease;
+}
+.slx-btn:hover{ background:#1f66c2; }
+.slx-empty{
+  text-align:center;
+  padding:18px;
+  color:var(--slx-gray);
+  font-size:.9rem;
+}
+.action-btn{
+  background:#29a7a4;
+  color:#fff;
+  padding:6px 12px;
+  border-radius:6px;
+  border:0;
+  font-size:.85rem;
+  font-weight:600;
+  text-decoration:none;
+}
+.action-btn:hover{ background:#1d8e8a; color:#fff; }
+.pdf-btn{
+  background:#777;
+}
+.pdf-btn:hover{ background:#555; }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="content-wrapper">
-  <!-- Encabezado -->
-  <section class="content-header">
-    <div class="container-fluid">
-      <h1 class="mb-2">Resultados</h1>
-      <p class="text-muted mb-0">Órdenes con exámenes pendientes para cargar resultados.</p>
-    </div>
-  </section>
+<div class="slx-card">
+  <div class="slx-title"><span class="icon">🧫</span> RESULTADOS</div>
 
-  <!-- Contenido -->
-  <section class="content">
-    <div class="container-fluid">
+  <p style="margin:0 0 14px;color:#555;font-size:.9rem;">
+    Órdenes con exámenes pendientes para cargar resultados.
+  </p>
 
-      <!-- Buscador (igual estilo que el resto) -->
-      <form method="get" class="mb-3">
-        <div class="row">
-          <div class="col-md-6">
-            <input type="text"
-                   name="q"
-                   class="form-control"
-                   placeholder="Buscar por paciente, documento o número de orden"
-                   value="{{ query|default_if_none:'' }}">
-          </div>
-          <div class="col-md-3 mt-2 mt-md-0">
-            <button type="submit" class="btn btn-primary w-100">
-              <i class="fas fa-search"></i> Buscar
-            </button>
-          </div>
-        </div>
-      </form>
+  <form method="get" class="slx-searchbar">
+    <input type="text"
+           name="q"
+           class="slx-input"
+           placeholder="Buscar por paciente, documento o número de orden"
+           value="{{ query|default_if_none:'' }}">
+    <button type="submit" class="slx-btn">🔍 Buscar</button>
+  </form>
 
-      <!-- Tabla principal -->
-      <div class="card card-primary card-outline">
-        <div class="card-body p-0 table-responsive">
-          <table class="table table-bordered table-striped mb-0">
-            <thead class="thead-dark">
-              <tr>
-                <th style="width:12%">Orden</th>
-                <th>Paciente</th>
-                <th style="width:20%">Documento</th>
-                <th style="width:18%">Fecha</th>
-                <th style="width:22%">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% if ordenes %}
-                {% for orden in ordenes %}
-                <tr>
-                  <td><strong>{{ orden.numero_orden }}</strong></td>
-                  <td>{{ orden.paciente.nombre_completo }}</td>
-                  <td>{{ orden.paciente.documento_identidad }}</td>
-                  <td>{{ orden.fecha|date:"d/m/Y H:i" }}</td>
-                  <td>
-                    <a href="{% url 'resultados_orden' orden.id %}" class="btn btn-success btn-sm">
-                      <i class="fas fa-vial"></i> Cargar resultados
-                    </a>
-                    <a href="{% url 'orden_pdf' orden.id %}" class="btn btn-secondary btn-sm">
-                      <i class="fas fa-file-pdf"></i> PDF
-                    </a>
-                  </td>
-                </tr>
-                {% endfor %}
-              {% else %}
-                <tr>
-                  <td colspan="5" class="text-center text-muted py-4">
-                    No hay órdenes con exámenes pendientes para cargar.
-                  </td>
-                </tr>
-              {% endif %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-    </div>
-  </section>
+  <div class="table-container">
+    <table class="slx-table">
+      <thead>
+        <tr>
+          <th style="width:12%">Orden</th>
+          <th>Paciente</th>
+          <th style="width:20%">Documento</th>
+          <th style="width:18%">Fecha</th>
+          <th style="width:22%">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% if ordenes %}
+          {% for orden in ordenes %}
+          <tr>
+            <td><strong>{{ orden.numero_orden }}</strong></td>
+            <td>{{ orden.paciente.nombre_completo }}</td>
+            <td>{{ orden.paciente.documento_identidad }}</td>
+            <td>{{ orden.fecha|date:"d/m/Y H:i" }}</td>
+            <td>
+              <a href="{% url 'resultados_orden' orden.id %}" class="action-btn">Cargar Resultados</a>
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr><td colspan="5" class="slx-empty">No hay órdenes pendientes para cargar resultados.</td></tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
 </div>
 {% endblock %}

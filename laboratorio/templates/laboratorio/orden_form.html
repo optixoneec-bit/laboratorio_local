@@ -396,6 +396,34 @@
     areaObs.hidden=true;
     if(aviso){aviso.style.display='none';}
   });
+
+  // ---------- BLOQUE NUEVO ----------
+  form.addEventListener('submit', function() {
+    // Eliminar anteriores (en caso de reenvío)
+    form.querySelectorAll('input[name="examen_codigo[]"], input[name="examen_precio[]"]').forEach(el => el.remove());
+
+    const filas = tbody.querySelectorAll('.slx-row');
+    filas.forEach(f => {
+      const celdas = f.querySelectorAll('div');
+      if (celdas.length >= 5) {
+        const codigo = celdas[0].textContent.trim();
+        const precio = (celdas[3].textContent || '').replace('$','').trim();
+
+        const inputCodigo = document.createElement('input');
+        inputCodigo.type = 'hidden';
+        inputCodigo.name = 'examen_codigo[]';
+        inputCodigo.value = codigo;
+
+        const inputPrecio = document.createElement('input');
+        inputPrecio.type = 'hidden';
+        inputPrecio.name = 'examen_precio[]';
+        inputPrecio.value = precio;
+
+        form.appendChild(inputCodigo);
+        form.appendChild(inputPrecio);
+      }
+    });
+  });
 })();
 </script>
 {% endblock %}

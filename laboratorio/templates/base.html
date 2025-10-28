@@ -71,8 +71,8 @@ body{
   <a href="{% url 'catalogo_examenes' %}" class="nav-item {% if request.resolver_match.url_name == 'catalogo_examenes' %}active{% endif %}">
     <span class="icon">📚</span><span>Catálogo</span>
   </a>
-  <a href="#" class="nav-item">
-    <span class="icon">📈</span><span>Informes</span>
+  <a href="{% url 'catalogo_tecnico' %}" class="nav-item {% if request.resolver_match.url_name == 'catalogo_tecnico' %}active{% endif %}">
+    <span class="icon">📈</span><span>Catalogo Técnico</span>
   </a>
   <a href="{% url 'resultados_lista' %}" class="nav-item {% if request.resolver_match.url_name == 'resultados_lista' %}active{% endif %}">
     <span class="icon">🧫</span><span>Resultados</span>

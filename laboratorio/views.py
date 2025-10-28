@@ -16,8 +16,22 @@ from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
 from django.views.decorators.http import require_http_methods
 from django.db import transaction
+from django.views.decorators.csrf import csrf_exempt
+import json
+from django.views.decorators.http import require_http_methods
+from django.db.models import Q
+from django.core.files.storage import default_storage
+import csv
+import io
+from django.http import HttpResponse
+try:
+    import pandas as pd
+except Exception:
+    pd = None
 
-from .models import Paciente, Orden, OrdenExamen, Resultado, Examen
+
+from .models import Paciente, Orden, OrdenExamen, Resultado, Examen, ExamenParametro
+
 
 
 # ------------------------------
@@ -117,6 +131,27 @@ def nueva_orden(request):
             numero_orden=numero,
             creado_por=request.user
         )
+
+        # -------------------------------------------
+        # NUEVO BLOQUE: guardar exámenes seleccionados
+        # -------------------------------------------
+        examenes_codigos = request.POST.getlist('examen_codigo[]')
+        examenes_precios = request.POST.getlist('examen_precio[]')
+
+        if examenes_codigos:
+            for idx, codigo in enumerate(examenes_codigos):
+                try:
+                    ex = Examen.objects.get(codigo=codigo)
+                    precio = float(examenes_precios[idx]) if idx < len(examenes_precios) else float(ex.precio)
+                    OrdenExamen.objects.create(
+                        orden=orden,
+                        examen=ex,
+                        precio=precio,
+                        creado_por=request.user
+                    )
+                except Examen.DoesNotExist:
+                    continue
+
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             html = render_to_string('laboratorio/partials/orden_item.html', {'orden': orden})
             return JsonResponse({'status': 'ok', 'html': html})
@@ -136,9 +171,11 @@ def detalle_orden(request, orden_id):
 @login_required
 def resultados_orden(request, orden_id):
     orden = get_object_or_404(Orden, id=orden_id)
-    examenes = orden.examenes.all()
-    return render(request, 'laboratorio/resultados.html', {'orden': orden, 'examenes': examenes})
-
+    examenes = orden.examenes.select_related('examen').prefetch_related('resultados')
+    return render(request, 'laboratorio/resultados.html', {
+        'orden': orden,
+        'examenes': examenes
+    })
 
 @login_required
 def orden_pdf(request, orden_id):
@@ -312,6 +349,18 @@ def catalogo_eliminar_todos_ajax(request):
         Examen.objects.all().delete()
         return JsonResponse({'status': 'ok', 'message': 'Todos los exámenes fueron eliminados correctamente'})
     return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+@login_required
+def catalogo_exportar(request):
+    examenes = Examen.objects.all().values('codigo', 'nombre', 'area', 'muestra', 'precio')
+    if not examenes:
+        return HttpResponse("No hay datos para exportar.", content_type="text/plain")
+
+    df = pd.DataFrame(list(examenes))
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename=catalogo_principal.xlsx'
+    df.to_excel(response, index=False)
+    return response
 
 
 # ------------------------------
@@ -546,3 +595,230 @@ def resultados_lista(request):
         'ordenes': ordenes,
         'query': q,
     })
+
+@login_required
+@csrf_exempt
+def guardar_resultados_ajax(request):
+    """
+    Guarda o actualiza los resultados desde la pantalla de carga (AJAX Synlab).
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+        resultado_id = data.get('id')
+        valor = data.get('valor')
+        unidad = data.get('unidad')
+        referencia = data.get('referencia')
+        metodo = data.get('metodo')
+        observacion = data.get('observacion')
+
+        resultado = Resultado.objects.get(id=resultado_id)
+        resultado.valor = valor
+        resultado.unidad = unidad
+        resultado.referencia = referencia
+        resultado.metodo = metodo
+        resultado.observacion = observacion
+        resultado.marca_fuera_de_rango()
+        resultado.save()
+
+        return JsonResponse({'status': 'ok', 'message': 'Resultado guardado correctamente.'})
+
+    except Resultado.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Resultado no encontrado.'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+@login_required
+def catalogo_tecnico(request):
+    """
+    Lista con búsqueda y paginación del Catálogo Técnico (ExamenParametro).
+    """
+    q = (request.GET.get('q') or '').strip()
+    qs = ExamenParametro.objects.select_related('examen').all()
+    if q:
+        qs = qs.filter(
+            Q(examen__codigo__icontains=q)|
+            Q(examen__nombre__icontains=q)|
+            Q(nombre__icontains=q)|
+            Q(unidad__icontains=q)|
+            Q(referencia__icontains=q)|
+            Q(metodo__icontains=q)
+        )
+    paginator = Paginator(qs, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    return render(request, 'laboratorio/catalogo_tecnico.html', {'page_obj': page_obj, 'query': q})
+
+@login_required
+@require_http_methods(["POST"])
+def catalogo_tecnico_save(request):
+    """
+    Guarda edición inline de un parámetro existente.
+    Body JSON: {id, nombre, unidad, referencia, metodo}
+    """
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+        p = ExamenParametro.objects.select_related('examen').get(id=data.get('id'))
+        p.nombre = data.get('nombre') or p.nombre
+        p.unidad = data.get('unidad')
+        p.referencia = data.get('referencia')
+        p.metodo = data.get('metodo')
+        p.save()
+        return JsonResponse({'status':'ok'})
+    except ExamenParametro.DoesNotExist:
+        return JsonResponse({'status':'error','message':'Parámetro no encontrado.'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status':'error','message':str(e)}, status=500)
+
+@login_required
+@require_http_methods(["POST"])
+def catalogo_tecnico_toggle_acreditado(request):
+    """
+    Alterna acreditación (✔/✖).
+    """
+    try:
+        p = ExamenParametro.objects.get(id=request.POST.get('id'))
+        p.acreditado = not p.acreditado
+        p.save()
+        return JsonResponse({'status':'ok','acreditado': p.acreditado})
+    except ExamenParametro.DoesNotExist:
+        return JsonResponse({'status':'error','message':'Parámetro no encontrado.'}, status=404)
+
+@login_required
+@require_http_methods(["POST"])
+def catalogo_tecnico_delete(request):
+    """
+    Elimina un parámetro.
+    """
+    try:
+        p = ExamenParametro.objects.get(id=request.POST.get('id'))
+        p.delete()
+        return JsonResponse({'status':'ok'})
+    except ExamenParametro.DoesNotExist:
+        return JsonResponse({'status':'error','message':'Parámetro no encontrado.'}, status=404)
+
+@login_required
+@require_http_methods(["POST"])
+def catalogo_tecnico_create(request):
+    """
+    Crea un nuevo parámetro:
+    - examen_busqueda: código o nombre del examen (se prioriza código).
+    - nombre, unidad, referencia, metodo, observacion, acreditado
+    """
+    examen_q = (request.POST.get('examen_busqueda') or '').strip()
+    if not examen_q:
+        return JsonResponse({'status':'error','message':'Ingrese el examen (código o nombre).'}, status=400)
+
+    # Resolver examen por código o por nombre (prioridad: código)
+    ex = Examen.objects.filter(codigo__iexact=examen_q).first()
+    if not ex:
+        ex = Examen.objects.filter(nombre__iexact=examen_q).first()
+    if not ex:
+        return JsonResponse({'status':'error','message':'Examen no encontrado por código o nombre.'}, status=404)
+
+    nombre = (request.POST.get('nombre') or '').strip()
+    if not nombre:
+        return JsonResponse({'status':'error','message':'El nombre del parámetro es obligatorio.'}, status=400)
+
+    # Evitar duplicados (mismo examen + mismo nombre)
+    if ExamenParametro.objects.filter(examen=ex, nombre__iexact=nombre).exists():
+        return JsonResponse({'status':'error','message':'Ya existe un parámetro con ese nombre para este examen.'}, status=409)
+
+    p = ExamenParametro.objects.create(
+        examen = ex,
+        nombre = nombre,
+        unidad = request.POST.get('unidad') or None,
+        referencia = request.POST.get('referencia') or None,
+        metodo = request.POST.get('metodo') or None,
+        observacion = request.POST.get('observacion') or None,
+        acreditado = True if request.POST.get('acreditado') in ['on','true','1'] else False
+    )
+    return JsonResponse({'status':'ok','id':p.id})
+
+@login_required
+@require_http_methods(["POST"])
+def catalogo_tecnico_import(request):
+    """
+    Importa parámetros desde Excel/CSV.
+    Encabezados esperados:
+      codigo_examen, parametro, unidad, referencia, metodo, observacion, acreditado
+    """
+    f = request.FILES.get('archivo')
+    if not f:
+        return JsonResponse({'status':'error','message':'Adjunta un archivo .xlsx o .csv'}, status=400)
+
+    created, updated, skipped = 0, 0, 0
+
+    def upsert_row(row):
+        nonlocal created, updated, skipped
+        code = (str(row.get('codigo_examen') or '').strip())
+        param = (str(row.get('parametro') or '').strip())
+        if not code or not param:
+            skipped += 1; return
+        ex = Examen.objects.filter(codigo__iexact=code).first()
+        if not ex:
+            skipped += 1; return
+        unidad = str(row.get('unidad') or '').strip() or None
+        ref = str(row.get('referencia') or '').strip() or None
+        metodo = str(row.get('metodo') or '').strip() or None
+        obs = str(row.get('observacion') or '').strip() or None
+        acreditado_val = str(row.get('acreditado') or '').strip().lower()
+        acreditado = True if acreditado_val in ['1','true','si','sí','yes','y','x','ok'] else False
+
+        obj, was_created = ExamenParametro.objects.update_or_create(
+            examen=ex, nombre__iexact=param,
+            defaults={'nombre':param,'unidad':unidad,'referencia':ref,'metodo':metodo,'observacion':obs,'acreditado':acreditado}
+        )
+        if was_created: created += 1
+        else: updated += 1
+
+    try:
+        name = f.name.lower()
+        if name.endswith('.csv'):
+            data = f.read().decode('utf-8', errors='ignore')
+            reader = csv.DictReader(io.StringIO(data))
+            for row in reader: upsert_row(row)
+        else:
+            if pd is None:
+                return JsonResponse({'status':'error','message':'Pandas no disponible para Excel. Usa CSV o instala pandas.'}, status=400)
+            df = pd.read_excel(f)
+            for _, row in df.iterrows():
+                upsert_row(row.to_dict())
+        return JsonResponse({'status':'ok','message':f'Importación OK: {created} nuevos, {updated} actualizados, {skipped} omitidos.'})
+    except Exception as e:
+        return JsonResponse({'status':'error','message':str(e)}, status=500)
+
+@login_required
+def catalogo_tecnico_export(request):
+    """
+    Exporta a CSV aplicando el filtro de búsqueda actual.
+    """
+    q = (request.GET.get('q') or '').strip()
+    qs = ExamenParametro.objects.select_related('examen').all()
+    if q:
+        qs = qs.filter(
+            Q(examen__codigo__icontains=q)|
+            Q(examen__nombre__icontains=q)|
+            Q(nombre__icontains=q)|
+            Q(unidad__icontains=q)|
+            Q(referencia__icontains=q)|
+            Q(metodo__icontains=q)
+        )
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow(['codigo_examen','examen','parametro','unidad','referencia','metodo','observacion','acreditado'])
+    for p in qs:
+        writer.writerow([
+            p.examen.codigo,
+            p.examen.nombre,
+            p.nombre or '',
+            p.unidad or '',
+            p.referencia or '',
+            p.metodo or '',
+            p.observacion or '',
+            '1' if p.acreditado else '0'
+        ])
+    response = HttpResponse(out.getvalue(), content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = 'attachment; filename=catalogo_tecnico.csv'
+    return response

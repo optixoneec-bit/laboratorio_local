@@ -69,6 +69,23 @@ class Examen(models.Model):
     def __str__(self):
         return f"{self.codigo} - {self.nombre}"
 
+class ExamenParametro(models.Model):
+    examen = models.ForeignKey('Examen', on_delete=models.CASCADE, related_name='parametros')
+    nombre = models.CharField(max_length=120, verbose_name="Nombre del parámetro")
+    unidad = models.CharField(max_length=50, blank=True, null=True, verbose_name="Unidad")
+    referencia = models.CharField(max_length=100, blank=True, null=True, verbose_name="Valores de referencia")
+    metodo = models.CharField(max_length=100, blank=True, null=True, verbose_name="Método analítico")
+    observacion = models.TextField(blank=True, null=True, verbose_name="Observaciones automáticas")
+    acreditado = models.BooleanField(default=True, verbose_name="Acreditado")
+
+    class Meta:
+        ordering = ['examen', 'nombre']
+        verbose_name = "Parámetro de examen"
+        verbose_name_plural = "Parámetros de examen"
+
+    def __str__(self):
+        return f"{self.examen.nombre} - {self.nombre}"
+
 
 class Orden(models.Model):
     paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE)
@@ -114,20 +131,43 @@ class OrdenExamen(models.Model):
 
 
 class Resultado(models.Model):
-    orden_examen = models.ForeignKey(OrdenExamen, on_delete=models.CASCADE, related_name='resultados')
-    parametro = models.CharField(max_length=100)
-    valor = models.CharField(max_length=50)
-    unidad = models.CharField(max_length=20, blank=True, null=True)
-    referencia = models.CharField(max_length=100, blank=True, null=True)
-    validado = models.BooleanField(default=False)
-    validado_por = models.ForeignKey(User, related_name='resultado_validado_por', on_delete=models.SET_NULL, null=True, blank=True)
-    fecha_validacion = models.DateTimeField(null=True, blank=True)
+    orden_examen = models.ForeignKey('OrdenExamen', on_delete=models.CASCADE, related_name='resultados')
+    parametro = models.CharField(max_length=120, verbose_name="Parámetro")
+    valor = models.CharField(max_length=50, blank=True, null=True, verbose_name="Valor")
+    unidad = models.CharField(max_length=50, blank=True, null=True, verbose_name="Unidad")
+    referencia = models.CharField(max_length=100, blank=True, null=True, verbose_name="Valores de referencia")
+    observacion = models.TextField(blank=True, null=True, verbose_name="Observaciones")
+    metodo = models.CharField(max_length=100, blank=True, null=True, verbose_name="Método")
+    acreditado = models.BooleanField(default=True, verbose_name="Acreditado")
+    fuera_de_rango = models.BooleanField(default=False, verbose_name="Fuera de rango")
+    es_calculado = models.BooleanField(default=False, verbose_name="Es calculado")
+    validado = models.BooleanField(default=False, verbose_name="Validado")
+    validado_por = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='resultados_validados')
+    fecha_validacion = models.DateTimeField(blank=True, null=True)
+    creado = models.DateTimeField(auto_now_add=True)
+    modificado = models.DateTimeField(auto_now=True)
 
-    creado_en = models.DateTimeField(auto_now_add=True)
-    actualizado_en = models.DateTimeField(auto_now=True)
+    class Meta:
+        ordering = ['orden_examen', 'parametro']
 
     def __str__(self):
-        return f"{self.parametro}: {self.valor}"
+        return f"{self.parametro} ({self.valor or ''})"
+
+    def marca_fuera_de_rango(self):
+        """
+        Determina automáticamente si el valor está fuera del rango de referencia.
+        """
+        try:
+            if not self.referencia or not self.valor:
+                return
+            ref = self.referencia.replace(',', '.')
+            if '-' in ref:
+                min_val, max_val = [float(x.strip()) for x in ref.split('-')]
+                val = float(self.valor.replace(',', '.'))
+                self.fuera_de_rango = not (min_val <= val <= max_val)
+        except Exception:
+            self.fuera_de_rango = False
+
 
 
 class Muestra(models.Model):
