@@ -134,7 +134,7 @@
       <tbody>
         {% if page_obj and page_obj.object_list %}
           {% for p in page_obj.object_list %}
-          <tr data-id="{{ p.id }}">
+          <tr data-id="{{ p.id }}" data-acreditado="{{ p.acreditado|yesno:'true,false' }}">
             <td class="small">{{ p.examen.codigo }}</td>
             <td class="small">{{ p.examen.nombre }}</td>
             <td>{{ p.nombre }}</td>
@@ -225,6 +225,12 @@
             <label class="small">Observación</label>
             <input type="text" class="slx-input" name="observacion">
           </div>
+          <!-- ✅ RESTAURADO EN LA BURBUJA, NO EN LA TABLA -->
+          <div class="full">
+            <label class="small" style="display:flex;align-items:center;gap:8px;">
+              <input type="checkbox" name="acreditado" style="width:auto;height:auto;"> Acreditado
+            </label>
+          </div>
         </div>
       </form>
     </div>
@@ -295,6 +301,12 @@
       f.referencia.value=referencia;
       f.metodo.value=metodo;
       f.observacion.value=observacion;
+      // ✅ llenar acreditado desde data attribute (no visible en tabla)
+      if (typeof row.dataset.acreditado !== 'undefined' && f.acreditado) {
+        f.acreditado.checked = (row.dataset.acreditado === 'true');
+      } else if (f.acreditado) {
+        f.acreditado.checked = false;
+      }
       f.dataset.editId=id;
     }
   });
@@ -308,9 +320,23 @@
     const url = editId ? "{% url 'catalogo_tecnico_save' %}" : "{% url 'catalogo_tecnico_create' %}";
     if(editId) datos.append('id',editId);
 
+    // ✅ asegurar envío de acreditado aunque esté desmarcado
+    if (f.acreditado) {
+      datos.set('acreditado', f.acreditado.checked ? 'true' : 'false');
+    }
+
     const r=await fetch(url,{method:'POST',headers:{'X-CSRFToken':csrf},body:datos});
     const data=await r.json();
-    if(data.status==='ok'){ location.reload(); }
+    if(data.status==='ok'){
+      // ✅ limpiar estado de edición para que "Editar" funcione después de guardar
+      delete f.dataset.editId;
+      // cerrar modal antes de recargar
+      const modal=document.getElementById('modal');
+      modal.classList.remove('show');
+      modal.setAttribute('aria-hidden','true');
+      // recargar para ver cambios
+      location.reload();
+    }
     else alert(data.message||'Error al guardar');
   });
 
@@ -318,13 +344,19 @@
   const mClose = () => {
     modal.classList.remove('show');
     modal.setAttribute('aria-hidden', 'true');
+    // ✅ reset total del formulario, incluyendo acreditado y estado de edición
+    const f=document.getElementById('form-nuevo');
+    f.reset();
+    delete f.dataset.editId;
+    if (f.acreditado) f.acreditado.checked = false;
   };
 
   // Evento para abrir el modal al hacer clic en el botón "Nuevo parámetro"
   document.getElementById('btn-nuevo')?.addEventListener('click', () => {
     const f = document.getElementById('form-nuevo');
-    f.reset(); // Limpia el formulario
-    delete f.dataset.editId; // Elimina cualquier ID de edición previo
+    f.reset();
+    delete f.dataset.editId;
+    if (f.acreditado) f.acreditado.checked = false;
     modal.classList.add('show');
     modal.setAttribute('aria-hidden', 'false');
   });

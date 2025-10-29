@@ -654,22 +654,26 @@ def catalogo_tecnico(request):
 @require_http_methods(["POST"])
 def catalogo_tecnico_save(request):
     """
-    Guarda edición inline de un parámetro existente.
-    Body JSON: {id, nombre, unidad, referencia, metodo}
+    Guarda edición inline de un parámetro existente (vía FormData).
     """
     try:
-        data = json.loads(request.body.decode('utf-8'))
-        p = ExamenParametro.objects.select_related('examen').get(id=data.get('id'))
-        p.nombre = data.get('nombre') or p.nombre
-        p.unidad = data.get('unidad')
-        p.referencia = data.get('referencia')
-        p.metodo = data.get('metodo')
+        id = request.POST.get('id')
+        p = ExamenParametro.objects.select_related('examen').get(id=id)
+
+        p.nombre = request.POST.get('nombre') or p.nombre
+        p.unidad = request.POST.get('unidad')
+        p.referencia = request.POST.get('referencia')
+        p.metodo = request.POST.get('metodo')
+        p.observacion = request.POST.get('observacion')
+        p.acreditado = request.POST.get('acreditado') == 'true'
         p.save()
-        return JsonResponse({'status':'ok'})
+
+        return JsonResponse({'status': 'ok'})
     except ExamenParametro.DoesNotExist:
-        return JsonResponse({'status':'error','message':'Parámetro no encontrado.'}, status=404)
+        return JsonResponse({'status': 'error', 'message': 'Parámetro no encontrado.'}, status=404)
     except Exception as e:
-        return JsonResponse({'status':'error','message':str(e)}, status=500)
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
+
 
 @login_required
 @require_http_methods(["POST"])

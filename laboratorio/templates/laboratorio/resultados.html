@@ -12,93 +12,38 @@
   --slx-red:#e85a5e;
   --slx-green:#2fa36a;
 }
-.slx-card{
-  background:var(--slx-bg);
-  border:1px solid var(--slx-border);
-  border-radius:12px;
-  padding:18px 20px;
-  box-shadow:0 2px 6px rgba(0,0,0,.04);
-}
-.slx-title{
-  background:var(--slx-blue);
-  color:#fff;
-  font-weight:700;
-  padding:10px 14px;
-  border-radius:8px;
-  margin-bottom:14px;
-  text-transform:uppercase;
-  display:flex;
-  align-items:center;
-  gap:8px;
-}
-.slx-title span.icon{font-size:1.2rem;}
-.slx-btn{
-  background:var(--slx-blue);
-  color:#fff;
-  border:0;
-  border-radius:8px;
-  padding:8px 14px;
-  font-weight:600;
-  cursor:pointer;
-  transition:background .2s ease;
-}
-.slx-btn:hover{ background:#1f66c2; }
-.slx-btn.green{ background:var(--slx-green); }
-.slx-btn.green:hover{ background:#248e5a; }
-.slx-btn.gray{ background:#ddd; color:#333; }
-.slx-area{
-  margin-top:22px;
-  border:1px solid var(--slx-border);
-  border-radius:10px;
-  overflow:hidden;
-}
-.slx-area-header{
-  background:var(--slx-cyan);
-  color:#fff;
-  font-weight:700;
-  padding:8px 12px;
-  text-transform:uppercase;
-  font-size:.9rem;
-}
-.slx-table{
-  width:100%;
-  border-collapse:collapse;
-}
-.slx-table th{
-  background:#f9fafb;
-  text-align:left;
-  padding:8px;
-  border-bottom:1px solid var(--slx-border);
-  font-size:.85rem;
-  color:#444;
-}
-.slx-table td{
-  padding:8px;
-  border-bottom:1px solid var(--slx-border);
-  font-size:.9rem;
-  vertical-align:middle;
-}
-.slx-input{
-  width:100%;
-  border:1px solid var(--slx-border);
-  border-radius:6px;
-  padding:6px 8px;
-  font-size:.85rem;
-}
-.icon-flag{font-weight:bold;}
-.icon-flag.up{color:var(--slx-red);}
-.icon-flag.down{color:#d97706;}
-.icon-flag.ok{color:var(--slx-green);}
+.slx-card{background:var(--slx-bg);border:1px solid var(--slx-border);border-radius:12px;padding:18px 20px;box-shadow:0 2px 6px rgba(0,0,0,.04);}
+.slx-title{background:var(--slx-blue);color:#fff;font-weight:700;padding:10px 14px;border-radius:8px;margin-bottom:14px;text-transform:uppercase;display:flex;align-items:center;gap:8px;}
+.slx-btn{background:var(--slx-blue);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer;transition:background .2s ease;}
+.slx-btn:hover{background:#1f66c2;}
+.slx-btn.green{background:var(--slx-green);}
+.slx-btn.green:hover{background:#248e5a;}
+.slx-btn.gray{background:#ddd;color:#333;}
+.slx-area{margin-top:22px;border:1px solid var(--slx-border);border-radius:10px;overflow:hidden;}
+.slx-area-header{background:var(--slx-cyan);color:#fff;font-weight:700;padding:8px 12px;text-transform:uppercase;font-size:.9rem;}
+.slx-table{width:100%;border-collapse:collapse;}
+.slx-table th{background:#f9fafb;text-align:left;padding:8px;border-bottom:1px solid var(--slx-border);font-size:.85rem;color:#444;}
+.slx-table td{padding:8px;border-bottom:1px solid var(--slx-border);font-size:.9rem;vertical-align:middle;}
+.slx-input{width:100%;border:1px solid var(--slx-border);border-radius:6px;padding:6px 8px;font-size:.85rem;}
 .text-muted{color:var(--slx-gray);}
-.alert-success{
-  background:#d1fae5;
-  border:1px solid #34d399;
-  color:#065f46;
-  padding:6px 10px;
-  border-radius:6px;
-  margin-top:10px;
-  font-size:.85rem;
-}
+.alert-success{background:#d1fae5;border:1px solid #34d399;color:#065f46;padding:6px 10px;border-radius:6px;margin-top:10px;font-size:.85rem;}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:5000;}
+.modal.show{display:flex;}
+.modal-card{background:#fff;border-radius:12px;min-width:360px;max-width:720px;width:96%;box-shadow:0 10px 30px rgba(0,0,0,.2);overflow:hidden;}
+.modal-head{background:var(--slx-blue);color:#fff;font-weight:700;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;}
+.modal-body{padding:14px;}
+.modal-foot{display:flex;gap:8px;justify-content:flex-end;padding:12px;border-top:1px solid #eee;}
+.param-grid{display:grid;grid-template-columns:1.3fr 0.9fr 0.8fr 1fr 1fr;gap:8px;align-items:center;margin-bottom:8px;}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.75rem;border:1px solid #e5e7eb;background:#f8fafc;color:#374151;}
+.hidden{display:none;}
+.table-mini{width:100%;border-collapse:collapse;}
+.table-mini th,.table-mini td{border-bottom:1px solid #e5e7eb;padding:6px 8px;font-size:.86rem;text-align:left;}
+.table-mini th{background:#f9fafb;}
+.fila-vacia{cursor:pointer;}
+.fila-vacia:hover{background:#f7fbff;}
+.param-row{cursor:pointer;}
+.param-row:hover{background:#f7fbff;}
+.btn-save{display:none;} /* sin verificación por examen */
 </style>
 {% endblock %}
 
@@ -108,7 +53,7 @@
 
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
     <a href="{% url 'resultados_lista' %}" class="slx-btn gray">← Volver</a>
-    <button class="slx-btn green" id="btnGuardar">💾 Guardar Cambios</button>
+    <button class="slx-btn green" id="btnGuardarTodo">💾 Guardar cambios</button>
   </div>
 
   <p style="margin:0 0 14px;color:#555;font-size:.9rem;">
@@ -116,6 +61,8 @@
     Documento: <strong>{{ orden.paciente.documento_identidad }}</strong> &nbsp; | &nbsp;
     Fecha: <strong>{{ orden.fecha|date:"d/m/Y H:i" }}</strong>
   </p>
+
+  <form class="hidden">{% csrf_token %}</form>
 
   {% regroup examenes by examen.area as examenes_por_area %}
   {% for area in examenes_por_area %}
@@ -137,19 +84,38 @@
         {% for ex in area.list %}
           {% if ex.resultados.exists %}
             {% for r in ex.resultados.all %}
-              <tr data-id="{{ r.id }}">
+              <tr class="param-row" data-id="{{ r.id }}" data-ordenex="{{ ex.id }}" data-param="{{ r.parametro|escapejs }}">
                 <td>{{ r.parametro }}</td>
-                <td><input type="text" class="slx-input campo-valor" value="{{ r.valor }}"></td>
-                <td><input type="text" class="slx-input campo-unidad" value="{{ r.unidad }}"></td>
-                <td><input type="text" class="slx-input campo-ref" value="{{ r.referencia }}"></td>
-                <td><input type="text" class="slx-input campo-metodo" value="{{ r.metodo }}"></td>
-                <td><input type="text" class="slx-input campo-obs" value="{{ r.observacion }}"></td>
+                <td><input type="text" class="slx-input campo-valor" value="{{ r.valor|default_if_none:'' }}"></td>
+                <td><input type="text" class="slx-input campo-unidad" value="{{ r.unidad|default_if_none:'' }}"></td>
+                <td><input type="text" class="slx-input campo-ref" value="{{ r.referencia|default_if_none:'' }}"></td>
+                <td><input type="text" class="slx-input campo-metodo" value="{{ r.metodo|default_if_none:'' }}"></td>
+                <td><input type="text" class="slx-input campo-obs" value="{{ r.observacion|default_if_none:'' }}"></td>
                 <td style="text-align:center;"><button class="slx-btn green btn-save" data-id="{{ r.id }}">✔</button></td>
               </tr>
             {% endfor %}
           {% else %}
-              <tr data-ordenex="{{ ex.id }}">
-                <td colspan="7" class="text-muted">Sin parámetros cargados para {{ ex.examen.nombre }}</td>
+              <tr data-ordenex="{{ ex.id }}" class="fila-vacia">
+                <td colspan="7" class="text-muted">
+                  🔹 Sin parámetros cargados para <strong>{{ ex.examen.nombre }}</strong>
+                  <span class="badge">{{ ex.examen.codigo }}</span>
+                  <script type="application/json" class="payload-parametros">
+                    [
+                      {% for ep in ex.examen.parametros.all %}
+                        {
+                          "nombre": "{{ ep.nombre|escapejs }}",
+                          "unidad": "{{ ep.unidad|default_if_none:''|escapejs }}",
+                          "referencia": "{{ ep.referencia|default_if_none:''|escapejs }}",
+                          "metodo": "{{ ep.metodo|default_if_none:''|escapejs }}",
+                          "observacion": "{{ ep.observacion|default_if_none:''|escapejs }}",
+                          "acreditado": {{ ep.acreditado|yesno:"true,false" }}
+                        }{% if not forloop.last %},{% endif %}
+                      {% empty %}
+                        { "nombre":"", "unidad":"", "referencia":"", "metodo":"", "observacion":"", "acreditado":false }
+                      {% endfor %}
+                    ]
+                  </script>
+                </td>
               </tr>
           {% endif %}
         {% endfor %}
@@ -163,49 +129,345 @@
   <div id="alerta" class="alert-success" style="display:none;">✅ Cambios guardados correctamente.</div>
 </div>
 
+<!-- Burbuja de edición/carga -->
+<div id="modalResultado" class="modal" aria-hidden="true">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>🧫 Parámetros</div>
+      <button type="button" id="m-cerrar" class="slx-btn gray">✖</button>
+    </div>
+    <div class="modal-body">
+      <div class="small" style="margin-bottom:10px;color:#555;">
+        <div><strong>Examen:</strong> <span id="m-examen"></span></div>
+        <div><strong>Código:</strong> <span id="m-codigo"></span></div>
+      </div>
+      <form id="form-burbuja">
+        <div class="param-grid" style="font-weight:600;">
+          <div>Parámetro</div><div>Valor</div><div>Unidad</div><div>Referencia</div><div>Método</div>
+        </div>
+        <div id="m-parametros"></div>
+
+        <div style="margin-top:12px;">
+          <label style="font-weight:600;">Observaciones:</label>
+          <textarea name="observacion_general" class="slx-input" rows="2" placeholder="Observaciones generales..."></textarea>
+        </div>
+        <div style="margin-top:10px;display:flex;align-items:center;gap:6px;">
+          <input type="checkbox" id="m-verificado" name="verificado">
+          <label for="m-verificado" style="font-size:.9rem;">Resultado verificado</label>
+        </div>
+      </form>
+      <div id="m-nota" class="text-muted" style="margin-top:6px;font-size:.82rem;"></div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" id="m-cancelar" class="slx-btn gray">Cancelar</button>
+      <button type="button" id="m-guardar" class="slx-btn">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Burbuja de resumen -->
+<div id="modalResumen" class="modal" aria-hidden="true">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>🧾 Resumen de resultados</div>
+      <button type="button" id="mr-cerrar" class="slx-btn gray">✖</button>
+    </div>
+    <div class="modal-body">
+      <table class="table-mini">
+        <thead>
+          <tr>
+            <th>Parámetro</th>
+            <th>Valor</th>
+            <th>Unidad</th>
+            <th>Referencia</th>
+            <th>Método</th>
+            <th>Observaciones</th>
+            <th>Verificado</th>
+          </tr>
+        </thead>
+        <tbody id="mr-body"></tbody>
+      </table>
+      <div id="mr-msg" class="text-muted" style="margin-top:8px;font-size:.82rem;">Verifica los datos antes de enviar.</div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" id="mr-volver" class="slx-btn gray">Volver</button>
+      <button type="button" id="mr-enviar" class="slx-btn green" disabled>Enviar a validación</button>
+    </div>
+  </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded',()=>{
   const alerta=document.getElementById('alerta');
-  document.querySelectorAll('.btn-save').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      const row=btn.closest('tr');
-      const id=btn.dataset.id;
-      const valor=row.querySelector('.campo-valor').value;
-      const unidad=row.querySelector('.campo-unidad').value;
-      const ref=row.querySelector('.campo-ref').value;
-      const metodo=row.querySelector('.campo-metodo').value;
-      const obs=row.querySelector('.campo-obs').value;
-      const csrf=document.querySelector('[name=csrfmiddlewaretoken]').value;
+  const modal=document.getElementById('modalResultado');
+  const modalResumen=document.getElementById('modalResumen');
+  const mExamen=document.getElementById('m-examen');
+  const mCodigo=document.getElementById('m-codigo');
+  const mParametros=document.getElementById('m-parametros');
+  const mNota=document.getElementById('m-nota');
+  const mrBody=document.getElementById('mr-body');
+  const mrMsg=document.getElementById('mr-msg');
+  const btnEnviar=document.getElementById('mr-enviar');
+  let currentOE=null;
+  let currentMode='multiple'; // 'multiple' (fila vacía) o 'single' (clic en parámetro existente)
+  let singleRowContext=null;  // {tr, id, param, unidad, ref, metodo, obs}
 
-      fetch("{% url 'guardar_resultados_ajax' %}",{
-        method:'POST',
-        headers:{
-          'Content-Type':'application/json',
-          'X-CSRFToken':csrf
-        },
-        body:JSON.stringify({
-          id:id,
-          valor:valor,
-          unidad:unidad,
-          referencia:ref,
-          metodo:metodo,
-          observacion:obs
-        })
-      })
-      .then(r=>r.json())
-      .then(data=>{
-        alerta.style.display='block';
-        alerta.textContent='✅ '+data.message;
-        setTimeout(()=>{alerta.style.display='none';},2500);
-      })
-      .catch(()=>{
-        alerta.style.display='block';
-        alerta.textContent='❌ Error al guardar resultado.';
-        alerta.style.background='#fee2e2';
-        setTimeout(()=>{alerta.style.display='none';},2500);
-      });
+  const getCSRF = () => (document.querySelector('[name=csrfmiddlewaretoken]')||{}).value || '';
+  const showAlert = (msg,isErr=false)=>{
+    alerta.style.display='block';
+    alerta.textContent = (isErr?'❌ ':'✅ ')+msg;
+    if(isErr){ alerta.style.background='#fee2e2'; }
+    setTimeout(()=>{alerta.style.display='none'; alerta.style.background='';},2200);
+  };
+  const openModal = (el)=>{ el.classList.add('show'); el.setAttribute('aria-hidden','false'); };
+  const closeModal = (el)=>{ el.classList.remove('show'); el.setAttribute('aria-hidden','true'); };
+
+  // Clic en fila sin resultados -> burbuja múltiple (catálogo)
+  document.querySelectorAll('.fila-vacia').forEach(fila=>{
+    fila.addEventListener('click',()=>{
+      currentMode='multiple';
+      singleRowContext=null;
+      currentOE=fila.dataset.ordenex;
+      const payloadTag=fila.querySelector('.payload-parametros');
+      let params=[];
+      try{ params=JSON.parse(payloadTag.textContent.trim()||'[]'); }catch(_){}
+      const examenNombre = fila.querySelector('strong')?.textContent || '';
+      const examenCodigo = fila.querySelector('.badge')?.textContent || '';
+
+      mExamen.textContent = examenNombre;
+      mCodigo.textContent = examenCodigo;
+
+      mParametros.innerHTML='';
+      if(!params || !params.length || !params[0].nombre){
+        mParametros.innerHTML = '<p class="text-muted">Este examen no tiene parámetros definidos en el Catálogo Técnico.</p>';
+        mNota.textContent = 'Define primero los parámetros en Catálogo Técnico para este examen.';
+      }else{
+        mNota.textContent = '';
+        params.forEach((p)=>{
+          const unidad = p.unidad || '—';
+          const referencia = p.referencia || '—';
+          const metodo = p.metodo || '—';
+          const row=document.createElement('div');
+          row.className='param-grid';
+          row.innerHTML=`
+            <div class="param-nombre">
+              ${p.nombre}
+              <input type="hidden" name="parametro[]" value="${p.nombre}">
+              <input type="hidden" name="unidad[]" value="${p.unidad||''}">
+              <input type="hidden" name="referencia[]" value="${p.referencia||''}">
+              <input type="hidden" name="metodo[]" value="${p.metodo||''}">
+            </div>
+            <div><input type="text" class="slx-input" name="valor[]" placeholder="Valor"></div>
+            <div><span class="badge">${unidad}</span></div>
+            <div><span class="badge">${referencia}</span></div>
+            <div><span class="badge">${metodo}</span></div>
+          `;
+          mParametros.appendChild(row);
+        });
+      }
+      openModal(modal);
     });
   });
+
+  // Clic en parámetro existente -> burbuja de un solo parámetro (edición)
+  document.querySelectorAll('.param-row[data-id]').forEach(tr=>{
+    tr.addEventListener('click',(e)=>{
+      // Evita que el click en inputs internos reabra burbuja mientras escribe
+      if(e.target && (e.target.tagName==='INPUT' || e.target.tagName==='BUTTON')) return;
+
+      currentMode='single';
+      currentOE=tr.dataset.ordenex;
+      const param = tr.dataset.param || tr.children[0].textContent.trim();
+      const valor = tr.querySelector('.campo-valor').value;
+      const unidad = tr.querySelector('.campo-unidad').value;
+      const ref = tr.querySelector('.campo-ref').value;
+      const metodo = tr.querySelector('.campo-metodo').value;
+      const obs = tr.querySelector('.campo-obs').value;
+
+      singleRowContext={tr,id:tr.dataset.id,param,unidad:unidad,referencia:ref,metodo:metodo,observacion:obs,valor:valor};
+
+      mExamen.textContent = tr.closest('table').previousElementSibling?.textContent || '';
+      mCodigo.textContent = '';
+      mParametros.innerHTML = `
+        <div class="param-grid">
+          <div class="param-nombre">
+            ${param}
+            <input type="hidden" name="parametro[]" value="${param}">
+            <input type="hidden" name="unidad[]" value="${unidad||''}">
+            <input type="hidden" name="referencia[]" value="${ref||''}">
+            <input type="hidden" name="metodo[]" value="${metodo||''}">
+          </div>
+          <div><input type="text" class="slx-input" name="valor[]" placeholder="Valor" value="${valor||''}"></div>
+          <div><span class="badge">${unidad||'—'}</span></div>
+          <div><span class="badge">${ref||'—'}</span></div>
+          <div><span class="badge">${metodo||'—'}</span></div>
+        </div>
+      `;
+      modal.querySelector('textarea[name="observacion_general"]').value = obs || '';
+      modal.querySelector('#m-verificado').checked = false;
+      openModal(modal);
+    });
+  });
+
+  // Cerrar burbujas
+  document.getElementById('m-cerrar').addEventListener('click',()=>closeModal(modal));
+  document.getElementById('m-cancelar').addEventListener('click',()=>closeModal(modal));
+  modal.addEventListener('click',(e)=>{ if(e.target===modal) closeModal(modal); });
+  document.getElementById('mr-cerrar').addEventListener('click',()=>closeModal(modalResumen));
+  document.getElementById('mr-volver').addEventListener('click',()=>{ closeModal(modalResumen); });
+
+  // Guardar dentro de burbuja (no avanza automático)
+  document.getElementById('m-guardar').addEventListener('click', async ()=>{
+    const f=document.getElementById('form-burbuja');
+    const parametros=[...f.querySelectorAll('input[name="parametro[]"]')].map(i=>i.value);
+    const valores=[...f.querySelectorAll('input[name="valor[]"]')].map(i=>i.value.trim());
+    const unidades=[...f.querySelectorAll('input[name="unidad[]"]')].map(i=>i.value);
+    const referencias=[...f.querySelectorAll('input[name="referencia[]"]')].map(i=>i.value);
+    const metodos=[...f.querySelectorAll('input[name="metodo[]"]')].map(i=>i.value);
+    const obsGeneral = f.querySelector('textarea[name="observacion_general"]').value || '';
+    const csrf=getCSRF();
+    let ok=0, fail=0;
+
+    if(currentMode==='multiple'){
+      for(let i=0;i<parametros.length;i++){
+        const p = parametros[i], v = valores[i];
+        if(!p || !v) continue;
+        const body=new URLSearchParams();
+        body.append('parametro', p);
+        body.append('valor', v);
+        body.append('unidad', unidades[i]||'');
+        body.append('referencia', referencias[i]||'');
+        try{
+          const r=await fetch("{% url 'registrar_resultado' 0 %}".replace('/0/','/'+currentOE+'/'),{
+            method:'POST', headers:{'X-CSRFToken':csrf,'X-Requested-With':'XMLHttpRequest'}, body
+          });
+          const data=await r.json(); if(data.status==='ok') ok++; else fail++;
+        }catch(_){ fail++; }
+      }
+    } else {
+      // single: actualizar la fila en la tabla + guardar por AJAX JSON si tiene id
+      const ctx=singleRowContext;
+      if(ctx && ctx.id){
+        const payload={ id:ctx.id, valor:valores[0]||'', unidad:unidades[0]||'', referencia:referencias[0]||'', metodo:metodos[0]||'', observacion:obsGeneral };
+        try{
+          const r=await fetch("{% url 'guardar_resultados_ajax' %}",{
+            method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify(payload)
+          });
+          const data=await r.json(); if(data.status==='ok'){ ok++; } else { fail++; }
+          // reflejar en DOM
+          ctx.tr.querySelector('.campo-valor').value = payload.valor;
+          ctx.tr.querySelector('.campo-unidad').value = payload.unidad;
+          ctx.tr.querySelector('.campo-ref').value = payload.referencia;
+          ctx.tr.querySelector('.campo-metodo').value = payload.metodo;
+          ctx.tr.querySelector('.campo-obs').value = payload.observacion;
+        }catch(_){ fail++; }
+      }
+    }
+
+    closeModal(modal);
+    if(ok>0){ showAlert('Guardado'); } else { showAlert('Nada guardado', true); }
+  });
+
+  // Guardar cambios (muestra resumen con TODO)
+  document.getElementById('btnGuardarTodo').addEventListener('click',()=>{
+    mrBody.innerHTML='';
+    let completos=true;
+
+    // Recoger existentes de la tabla (param-rows)
+    document.querySelectorAll('.param-row[data-id]').forEach(tr=>{
+      const param = tr.dataset.param || tr.children[0].textContent.trim();
+      const valor = tr.querySelector('.campo-valor').value.trim();
+      const unidad = tr.querySelector('.campo-unidad').value.trim();
+      const ref = tr.querySelector('.campo-ref').value.trim();
+      const metodo = tr.querySelector('.campo-metodo').value.trim();
+      const obs = tr.querySelector('.campo-obs').value.trim();
+      const verif = '—'; // verificado se maneja a nivel general de burbuja
+      const trR=document.createElement('tr');
+      trR.innerHTML = `
+        <td>${param}</td><td>${valor}</td><td>${unidad||'—'}</td><td>${ref||'—'}</td><td>${metodo||'—'}</td><td>${obs||''}</td><td>${verif}</td>
+      `;
+      mrBody.appendChild(trR);
+      if(!valor) completos=false;
+    });
+
+    // Si hay parámetros en la burbuja abierta (no guardados aún), integrarlos también
+    if(modal.classList.contains('show')){
+      const f=document.getElementById('form-burbuja');
+      const parametros=[...f.querySelectorAll('input[name="parametro[]"]')].map(i=>i.value);
+      const valores=[...f.querySelectorAll('input[name="valor[]"]')].map(i=>i.value.trim());
+      const unidades=[...f.querySelectorAll('input[name="unidad[]"]')].map(i=>i.value);
+      const referencias=[...f.querySelectorAll('input[name="referencia[]"]')].map(i=>i.value);
+      const metodos=[...f.querySelectorAll('input[name="metodo[]"]')].map(i=>i.value);
+      const obsGeneral = f.querySelector('textarea[name="observacion_general"]').value || '';
+      const verificado = f.querySelector('#m-verificado').checked ? 'Sí' : 'No';
+
+      for(let i=0;i<parametros.length;i++){
+        if(!parametros[i]) continue;
+        const trR=document.createElement('tr');
+        trR.innerHTML=`
+          <td>${parametros[i]}</td><td>${valores[i]||''}</td><td>${unidades[i]||'—'}</td><td>${referencias[i]||'—'}</td><td>${metodos[i]||'—'}</td><td>${obsGeneral}</td><td>${verificado}</td>
+        `;
+        mrBody.appendChild(trR);
+        if(!valores[i]) completos=false;
+      }
+    }
+
+    btnEnviar.disabled = !completos;
+    mrMsg.textContent = completos
+      ? 'Todo completo. Puedes enviar a validación.'
+      : 'Hay parámetros sin valor. Se guardarán los completos y la orden quedará en espera.';
+    openModal(modalResumen);
+  });
+
+  // Enviar a validación (guarda todo lo editable y recarga)
+  btnEnviar.addEventListener('click', async ()=>{
+    const csrf=getCSRF();
+    let ok=0, fail=0;
+
+    // Guardar todos los existentes con sus valores actuales
+    const saves = [];
+    document.querySelectorAll('.param-row[data-id]').forEach(tr=>{
+      const id=tr.dataset.id;
+      const payload={
+        id:id,
+        valor:tr.querySelector('.campo-valor').value.trim(),
+        unidad:tr.querySelector('.campo-unidad').value.trim(),
+        referencia:tr.querySelector('.campo-ref').value.trim(),
+        metodo:tr.querySelector('.campo-metodo').value.trim(),
+        observacion:tr.querySelector('.campo-obs').value.trim()
+      };
+      saves.push(fetch("{% url 'guardar_resultados_ajax' %}",{
+        method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify(payload)
+      }).then(r=>r.json()).then(d=>{ if(d.status==='ok') ok++; else fail++; }).catch(()=>{ fail++; }));
+    });
+
+    // Si burbuja de múltiples estaba abierta con parámetros nuevos, crear esos también
+    if(modal.classList.contains('show')){
+      const f=document.getElementById('form-burbuja');
+      const parametros=[...f.querySelectorAll('input[name="parametro[]"]')].map(i=>i.value);
+      const valores=[...f.querySelectorAll('input[name="valor[]"]')].map(i=>i.value.trim());
+      const unidades=[...f.querySelectorAll('input[name="unidad[]"]')].map(i=>i.value);
+      const referencias=[...f.querySelectorAll('input[name="referencia[]"]')].map(i=>i.value);
+      for(let i=0;i<parametros.length;i++){
+        const p=parametros[i], v=valores[i];
+        if(!p || !v) continue;
+        const body=new URLSearchParams();
+        body.append('parametro', p);
+        body.append('valor', v);
+        body.append('unidad', unidades[i]||'');
+        body.append('referencia', referencias[i]||'');
+        saves.push(fetch("{% url 'registrar_resultado' 0 %}".replace('/0/','/'+currentOE+'/'),{
+          method:'POST', headers:{'X-CSRFToken':csrf,'X-Requested-With':'XMLHttpRequest'}, body
+        }).then(r=>r.json()).then(d=>{ if(d.status==='ok') ok++; else fail++; }).catch(()=>{ fail++; }));
+      }
+    }
+
+    await Promise.all(saves);
+    closeModal(modalResumen);
+    if(ok>0){ showAlert('Enviado a validación'); } else { showAlert('No se pudo guardar', true); }
+    setTimeout(()=>{ location.reload(); },900);
+  });
+
 });
 </script>
 {% endblock %}

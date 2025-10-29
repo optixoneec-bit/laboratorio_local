@@ -40,6 +40,8 @@ urlpatterns = [
     path('resultado/<int:orden_examen_id>/registrar/', views.registrar_resultado, name='registrar_resultado'),
     path('resultado/<int:resultado_id>/validar/', views.validar_resultado, name='validar_resultado'),
     path('resultado/<int:resultado_id>/anular_validacion/', views.anular_validacion, name='anular_validacion'),
+    path('resultado/burbuja/', views.burbuja_resultado_ajax, name='burbuja_resultado_ajax'),
+
 
     # -----------------------------
     # Módulo Resultados (inicio)
