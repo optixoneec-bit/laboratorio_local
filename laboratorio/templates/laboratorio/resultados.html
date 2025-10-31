@@ -23,7 +23,7 @@
 .slx-area-header{background:var(--slx-cyan);color:#fff;font-weight:700;padding:8px 12px;text-transform:uppercase;font-size:.9rem;}
 .slx-table{width:100%;border-collapse:collapse;}
 .slx-table th{background:#f9fafb;text-align:left;padding:8px;border-bottom:1px solid var(--slx-border);font-size:.85rem;color:#444;}
-.slx-table td{padding:8px;border-bottom:1px solid var(--slx-border);font-size:.9rem;vertical-align:middle;}
+.slx-table td{padding:8px;border-bottom:1px solid var (--slx-border);font-size:.9rem;vertical-align:middle;}
 .slx-input{width:100%;border:1px solid var(--slx-border);border-radius:6px;padding:6px 8px;font-size:.85rem;}
 .text-muted{color:var(--slx-gray);}
 .alert-success{background:#d1fae5;border:1px solid #34d399;color:#065f46;padding:6px 10px;border-radius:6px;margin-top:10px;font-size:.85rem;}
@@ -91,7 +91,7 @@
                 <td><input type="text" class="slx-input campo-ref" value="{{ r.referencia|default_if_none:'' }}"></td>
                 <td><input type="text" class="slx-input campo-metodo" value="{{ r.metodo|default_if_none:'' }}"></td>
                 <td><input type="text" class="slx-input campo-obs" value="{{ r.observacion|default_if_none:'' }}"></td>
-                <td style="text-align:center;"><button class="slx-btn green btn-save" data-id="{{ r.id }}">✔</button></td>
+                <td style="text-align:center;"><span class="campo-verificado">{{ r.verificado|yesno:"Sí,No" }}</span></td>
               </tr>
             {% endfor %}
           {% else %}
@@ -129,7 +129,6 @@
   <div id="alerta" class="alert-success" style="display:none;">✅ Cambios guardados correctamente.</div>
 </div>
 
-<!-- Burbuja de edición/carga -->
 <div id="modalResultado" class="modal" aria-hidden="true">
   <div class="modal-card">
     <div class="modal-head">
@@ -165,7 +164,6 @@
   </div>
 </div>
 
-<!-- Burbuja de resumen -->
 <div id="modalResumen" class="modal" aria-hidden="true">
   <div class="modal-card">
     <div class="modal-head">
@@ -246,7 +244,7 @@ document.addEventListener('DOMContentLoaded',()=>{
         params.forEach((p)=>{
           const unidad = p.unidad || '—';
           const referencia = p.referencia || '—';
-          const metodo = p.metodo || '—';
+          const metodo = p.metodo || '—'; // 👈 Incluye el método
           const row=document.createElement('div');
           row.className='param-grid';
           row.innerHTML=`
@@ -255,12 +253,12 @@ document.addEventListener('DOMContentLoaded',()=>{
               <input type="hidden" name="parametro[]" value="${p.nombre}">
               <input type="hidden" name="unidad[]" value="${p.unidad||''}">
               <input type="hidden" name="referencia[]" value="${p.referencia||''}">
-              <input type="hidden" name="metodo[]" value="${p.metodo||''}">
+              <input type="hidden" name="metodo[]" value="${p.metodo||''}"> <!-- 👈 Incluye el método -->
             </div>
             <div><input type="text" class="slx-input" name="valor[]" placeholder="Valor"></div>
             <div><span class="badge">${unidad}</span></div>
             <div><span class="badge">${referencia}</span></div>
-            <div><span class="badge">${metodo}</span></div>
+            <div><span class="badge">${metodo}</span></div> <!-- 👈 Muestra el método -->
           `;
           mParametros.appendChild(row);
         });
@@ -281,11 +279,13 @@ document.addEventListener('DOMContentLoaded',()=>{
       const valor = tr.querySelector('.campo-valor').value;
       const unidad = tr.querySelector('.campo-unidad').value;
       const ref = tr.querySelector('.campo-ref').value;
-      const metodo = tr.querySelector('.campo-metodo').value;
+      const metodo = tr.querySelector('.campo-metodo').value; // 👈 Extrae el método
       const obs = tr.querySelector('.campo-obs').value;
 
-      singleRowContext={tr,id:tr.dataset.id,param,unidad:unidad,referencia:ref,metodo:metodo,observacion:obs,valor:valor};
+      // Guarda el contexto de la fila seleccionada
+      singleRowContext = { tr, id: tr.dataset.id, param, unidad, referencia: ref, metodo: metodo, observacion: obs, valor: valor };
 
+      // Carga los valores en el modal
       mExamen.textContent = tr.closest('table').previousElementSibling?.textContent || '';
       mCodigo.textContent = '';
       mParametros.innerHTML = `
@@ -293,14 +293,14 @@ document.addEventListener('DOMContentLoaded',()=>{
           <div class="param-nombre">
             ${param}
             <input type="hidden" name="parametro[]" value="${param}">
-            <input type="hidden" name="unidad[]" value="${unidad||''}">
-            <input type="hidden" name="referencia[]" value="${ref||''}">
-            <input type="hidden" name="metodo[]" value="${metodo||''}">
+            <input type="hidden" name="unidad[]" value="${unidad || ''}">
+            <input type="hidden" name="referencia[]" value="${ref || ''}">
+            <input type="hidden" name="metodo[]" value="${metodo || ''}"> <!-- 👈 Incluye el método -->
           </div>
-          <div><input type="text" class="slx-input" name="valor[]" placeholder="Valor" value="${valor||''}"></div>
-          <div><span class="badge">${unidad||'—'}</span></div>
-          <div><span class="badge">${ref||'—'}</span></div>
-          <div><span class="badge">${metodo||'—'}</span></div>
+          <div><input type="text" class="slx-input" name="valor[]" placeholder="Valor" value="${valor || ''}"></div>
+          <div><span class="badge">${unidad || '—'}</span></div>
+          <div><span class="badge">${ref || '—'}</span></div>
+          <div><span class="badge">${metodo || '—'}</span></div> <!-- 👈 Muestra el método -->
         </div>
       `;
       modal.querySelector('textarea[name="observacion_general"]').value = obs || '';
@@ -314,7 +314,9 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('m-cancelar').addEventListener('click',()=>closeModal(modal));
   modal.addEventListener('click',(e)=>{ if(e.target===modal) closeModal(modal); });
   document.getElementById('mr-cerrar').addEventListener('click',()=>closeModal(modalResumen));
-  document.getElementById('mr-volver').addEventListener('click',()=>{ closeModal(modalResumen); });
+  document.getElementById('mr-volver').addEventListener('click', () => {
+    closeModal(modalResumen);
+  });
 
   // Guardar dentro de burbuja (no avanza automático)
   document.getElementById('m-guardar').addEventListener('click', async ()=>{
@@ -323,150 +325,196 @@ document.addEventListener('DOMContentLoaded',()=>{
     const valores=[...f.querySelectorAll('input[name="valor[]"]')].map(i=>i.value.trim());
     const unidades=[...f.querySelectorAll('input[name="unidad[]"]')].map(i=>i.value);
     const referencias=[...f.querySelectorAll('input[name="referencia[]"]')].map(i=>i.value);
-    const metodos=[...f.querySelectorAll('input[name="metodo[]"]')].map(i=>i.value);
+    const metodos=[...f.querySelectorAll('input[name="metodo[]"]')].map(i=>i.value); // Obtener métodos
     const obsGeneral = f.querySelector('textarea[name="observacion_general"]').value || '';
     const csrf=getCSRF();
     let ok=0, fail=0;
+    let saves = []; // Array para almacenar promesas de guardado
 
-    if(currentMode==='multiple'){
-      for(let i=0;i<parametros.length;i++){
+    if (currentMode === 'multiple') {
+      // Múltiple: crea nuevos registros (requiere recarga para verlos)
+      for (let i = 0; i < parametros.length; i++) {
         const p = parametros[i], v = valores[i];
-        if(!p || !v) continue;
-        const body=new URLSearchParams();
+        if (!p || !v) continue;
+
+        const body = new URLSearchParams();
         body.append('parametro', p);
         body.append('valor', v);
-        body.append('unidad', unidades[i]||'');
-        body.append('referencia', referencias[i]||'');
-        try{
-          const r=await fetch("{% url 'registrar_resultado' 0 %}".replace('/0/','/'+currentOE+'/'),{
-            method:'POST', headers:{'X-CSRFToken':csrf,'X-Requested-With':'XMLHttpRequest'}, body
-          });
-          const data=await r.json(); if(data.status==='ok') ok++; else fail++;
-        }catch(_){ fail++; }
+        body.append('unidad', unidades[i] || '');
+        body.append('referencia', referencias[i] || '');
+        body.append('metodo', metodos[i] || ''); // 👈 Incluye el método individual
+        body.append('observacion', obsGeneral); // 👈 Incluye la observación general
+        body.append('verificado', f.querySelector('#m-verificado').checked ? 'True' : 'False'); // 👈 Incluye el estado de verificado
+
+        // Agregamos la promesa al array 'saves'
+        saves.push(fetch("{% url 'registrar_resultado' 0 %}".replace('/0/', '/' + currentOE + '/'), {
+          method: 'POST',
+          headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' },
+          body
+        }).then(r => r.json()).then(data => {
+          if (data.status === 'ok') ok++;
+          else fail++;
+        }).catch(() => { fail++; }));
       }
     } else {
-      // single: actualizar la fila en la tabla + guardar por AJAX JSON si tiene id
+      // Single: actualiza registro existente (actualización en DOM es local)
       const ctx=singleRowContext;
       if(ctx && ctx.id){
-        const payload={ id:ctx.id, valor:valores[0]||'', unidad:unidades[0]||'', referencia:referencias[0]||'', metodo:metodos[0]||'', observacion:obsGeneral };
-        try{
-          const r=await fetch("{% url 'guardar_resultados_ajax' %}",{
-            method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify(payload)
-          });
-          const data=await r.json(); if(data.status==='ok'){ ok++; } else { fail++; }
-          // reflejar en DOM
-          ctx.tr.querySelector('.campo-valor').value = payload.valor;
-          ctx.tr.querySelector('.campo-unidad').value = payload.unidad;
-          ctx.tr.querySelector('.campo-ref').value = payload.referencia;
-          ctx.tr.querySelector('.campo-metodo').value = payload.metodo;
-          ctx.tr.querySelector('.campo-obs').value = payload.observacion;
-        }catch(_){ fail++; }
+        const payload = {
+          id: ctx.id,
+          valor: valores[0] || '',
+          unidad: unidades[0] || '',
+          referencia: referencias[0] || '',
+          metodo: metodos[0] || '', // 👈 Incluye el método
+          observacion: obsGeneral,  // 👈 Incluye la observación
+        };
+
+        // Agregamos la promesa al array 'saves'
+        saves.push(fetch("{% url 'guardar_resultados_ajax' %}",{
+          method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify(payload)
+        }).then(r=>r.json()).then(data=>{
+          if(data.status==='ok'){
+            ok++;
+            // REFLEJAR EN DOM INMEDIATAMENTE:
+            ctx.tr.querySelector('.campo-valor').value = payload.valor;
+            ctx.tr.querySelector('.campo-unidad').value = payload.unidad;
+            ctx.tr.querySelector('.campo-ref').value = payload.referencia;
+            ctx.tr.querySelector('.campo-metodo').value = payload.metodo;       // 👈 Actualiza el método
+            ctx.tr.querySelector('.campo-obs').value = payload.observacion;     // 👈 Actualiza la observación
+            ctx.tr.querySelector('.campo-verificado').textContent = f.querySelector('#m-verificado').checked ? 'Sí' : 'No'; // 👈 Actualiza el estado de verificado
+          } else {
+            fail++;
+          }
+        }).catch(()=>{ fail++; }));
       }
     }
+
+    // Esperar a que todas las peticiones terminen
+    await Promise.all(saves);
 
     closeModal(modal);
-    if(ok>0){ showAlert('Guardado'); } else { showAlert('Nada guardado', true); }
+
+    if(ok > 0) {
+        showAlert('Guardado exitoso');
+        if (currentMode === 'multiple') {
+            // Si creamos nuevos elementos (multiple mode), recargamos para que Django los dibuje.
+            setTimeout(() => { window.location.href = "{% url 'resultados_lista' %}"; }, 600);
+
+        }
+    } else {
+        showAlert('Nada guardado o error en el proceso', true);
+    }
   });
 
-  // Guardar cambios (muestra resumen con TODO)
-  document.getElementById('btnGuardarTodo').addEventListener('click',()=>{
-    mrBody.innerHTML='';
-    let completos=true;
+// Guardar cambios (muestra resumen con TODO)
+document.getElementById('btnGuardarTodo').addEventListener('click',()=>{
+  mrBody.innerHTML='';
+  let completos=true;
 
-    // Recoger existentes de la tabla (param-rows)
-    document.querySelectorAll('.param-row[data-id]').forEach(tr=>{
-      const param = tr.dataset.param || tr.children[0].textContent.trim();
-      const valor = tr.querySelector('.campo-valor').value.trim();
-      const unidad = tr.querySelector('.campo-unidad').value.trim();
-      const ref = tr.querySelector('.campo-ref').value.trim();
-      const metodo = tr.querySelector('.campo-metodo').value.trim();
-      const obs = tr.querySelector('.campo-obs').value.trim();
-      const verif = '—'; // verificado se maneja a nivel general de burbuja
+  // Recoger existentes de la tabla (param-rows)
+  document.querySelectorAll('.param-row[data-id]').forEach(tr=>{
+    const param = tr.dataset.param || tr.children[0].textContent.trim();
+    const valor = tr.querySelector('.campo-valor').value.trim();
+    const unidad = tr.querySelector('.campo-unidad').value.trim();
+    const ref = tr.querySelector('.campo-ref').value.trim();
+    const metodo = tr.querySelector('.campo-metodo').value.trim();
+    const obs = tr.querySelector('.campo-obs').value.trim();
+
+    // ✅ Captura real del estado verificado
+    const verifEl = tr.querySelector('.campo-verificado');
+    const verif = verifEl ? (verifEl.textContent.trim() || '—') : '—';
+
+    const trR=document.createElement('tr');
+    trR.innerHTML = `
+      <td>${param}</td>
+      <td>${valor}</td>
+      <td>${unidad||'—'}</td>
+      <td>${ref||'—'}</td>
+      <td>${metodo||'—'}</td>
+      <td>${obs||''}</td>
+      <td>${verif}</td>
+    `;
+    mrBody.appendChild(trR);
+    if(!valor) completos=false;
+  });
+
+  // Si hay parámetros abiertos en la burbuja
+  if(modal.classList.contains('show')){
+    const f=document.getElementById('form-burbuja');
+    const parametros=[...f.querySelectorAll('input[name="parametro[]"]')].map(i=>i.value);
+    const valores=[...f.querySelectorAll('input[name="valor[]"]')].map(i=>i.value.trim());
+    const unidades=[...f.querySelectorAll('input[name="unidad[]"]')].map(i=>i.value);
+    const referencias=[...f.querySelectorAll('input[name="referencia[]"]')].map(i=>i.value);
+    const metodos=[...f.querySelectorAll('input[name="metodo[]"]')].map(i=>i.value);
+    const obsGeneral=f.querySelector('textarea[name="observacion_general"]').value || '';
+    const verificado=f.querySelector('#m-verificado').checked ? 'Sí' : 'No';
+
+    for(let i=0;i<parametros.length;i++){
+      if(!parametros[i]) continue;
       const trR=document.createElement('tr');
-      trR.innerHTML = `
-        <td>${param}</td><td>${valor}</td><td>${unidad||'—'}</td><td>${ref||'—'}</td><td>${metodo||'—'}</td><td>${obs||''}</td><td>${verif}</td>
+      trR.innerHTML=`
+        <td>${parametros[i]}</td>
+        <td>${valores[i]||''}</td>
+        <td>${unidades[i]||'—'}</td>
+        <td>${referencias[i]||'—'}</td>
+        <td>${metodos[i]||'—'}</td>
+        <td>${obsGeneral}</td>
+        <td>${verificado}</td>
       `;
       mrBody.appendChild(trR);
-      if(!valor) completos=false;
-    });
-
-    // Si hay parámetros en la burbuja abierta (no guardados aún), integrarlos también
-    if(modal.classList.contains('show')){
-      const f=document.getElementById('form-burbuja');
-      const parametros=[...f.querySelectorAll('input[name="parametro[]"]')].map(i=>i.value);
-      const valores=[...f.querySelectorAll('input[name="valor[]"]')].map(i=>i.value.trim());
-      const unidades=[...f.querySelectorAll('input[name="unidad[]"]')].map(i=>i.value);
-      const referencias=[...f.querySelectorAll('input[name="referencia[]"]')].map(i=>i.value);
-      const metodos=[...f.querySelectorAll('input[name="metodo[]"]')].map(i=>i.value);
-      const obsGeneral = f.querySelector('textarea[name="observacion_general"]').value || '';
-      const verificado = f.querySelector('#m-verificado').checked ? 'Sí' : 'No';
-
-      for(let i=0;i<parametros.length;i++){
-        if(!parametros[i]) continue;
-        const trR=document.createElement('tr');
-        trR.innerHTML=`
-          <td>${parametros[i]}</td><td>${valores[i]||''}</td><td>${unidades[i]||'—'}</td><td>${referencias[i]||'—'}</td><td>${metodos[i]||'—'}</td><td>${obsGeneral}</td><td>${verificado}</td>
-        `;
-        mrBody.appendChild(trR);
-        if(!valores[i]) completos=false;
-      }
+      if(!valores[i]) completos=false;
     }
+  }
 
-    btnEnviar.disabled = !completos;
-    mrMsg.textContent = completos
-      ? 'Todo completo. Puedes enviar a validación.'
-      : 'Hay parámetros sin valor. Se guardarán los completos y la orden quedará en espera.';
-    openModal(modalResumen);
+  btnEnviar.disabled = !completos;
+  mrMsg.textContent = completos
+    ? 'Todo completo. Puedes enviar a validación.'
+    : 'Hay parámetros sin valor. Se guardarán los completos y la orden quedará en espera.';
+  openModal(modalResumen);
+});
+
+
+  let enviarValidacion = false;
+
+  btnEnviar.addEventListener('click', async () => {
+  enviarValidacion = true;
+  const csrf = getCSRF();
+  let ok = 0, fail = 0;
+  const saves = [];
+
+  document.querySelectorAll('.param-row[data-id]').forEach(tr => {
+    const id = tr.dataset.id;
+    const payload = {
+      id: id,
+      valor: tr.querySelector('.campo-valor').value.trim(),
+      unidad: tr.querySelector('.campo-unidad').value.trim(),
+      referencia: tr.querySelector('.campo-ref').value.trim(),
+      metodo: tr.querySelector('.campo-metodo').value.trim(),
+      observacion: tr.querySelector('.campo-obs').value.trim(),
+      accion: "enviar_validacion" // ✅ clave correcta para views.py
+    };
+
+    saves.push(fetch("{% url 'guardar_resultados_ajax' %}", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+      body: JSON.stringify(payload)
+    }).then(r => r.json()).then(d => { if (d.status === 'ok' || d.status === 'redirect') ok++; else fail++; }).catch(() => { fail++; }));
   });
 
-  // Enviar a validación (guarda todo lo editable y recarga)
-  btnEnviar.addEventListener('click', async ()=>{
-    const csrf=getCSRF();
-    let ok=0, fail=0;
+  await Promise.all(saves);
+  closeModal(modalResumen);
 
-    // Guardar todos los existentes con sus valores actuales
-    const saves = [];
-    document.querySelectorAll('.param-row[data-id]').forEach(tr=>{
-      const id=tr.dataset.id;
-      const payload={
-        id:id,
-        valor:tr.querySelector('.campo-valor').value.trim(),
-        unidad:tr.querySelector('.campo-unidad').value.trim(),
-        referencia:tr.querySelector('.campo-ref').value.trim(),
-        metodo:tr.querySelector('.campo-metodo').value.trim(),
-        observacion:tr.querySelector('.campo-obs').value.trim()
-      };
-      saves.push(fetch("{% url 'guardar_resultados_ajax' %}",{
-        method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify(payload)
-      }).then(r=>r.json()).then(d=>{ if(d.status==='ok') ok++; else fail++; }).catch(()=>{ fail++; }));
-    });
+  if (ok > 0 && enviarValidacion) {
+    showAlert('Resultados enviados a validación');
+    setTimeout(() => {
+      window.location.href = "{% url 'resultados_lista' %}";
+    }, 1000);
+  } else if (fail > 0) {
+    showAlert('No se pudo guardar', true);
+  }
+});
 
-    // Si burbuja de múltiples estaba abierta con parámetros nuevos, crear esos también
-    if(modal.classList.contains('show')){
-      const f=document.getElementById('form-burbuja');
-      const parametros=[...f.querySelectorAll('input[name="parametro[]"]')].map(i=>i.value);
-      const valores=[...f.querySelectorAll('input[name="valor[]"]')].map(i=>i.value.trim());
-      const unidades=[...f.querySelectorAll('input[name="unidad[]"]')].map(i=>i.value);
-      const referencias=[...f.querySelectorAll('input[name="referencia[]"]')].map(i=>i.value);
-      for(let i=0;i<parametros.length;i++){
-        const p=parametros[i], v=valores[i];
-        if(!p || !v) continue;
-        const body=new URLSearchParams();
-        body.append('parametro', p);
-        body.append('valor', v);
-        body.append('unidad', unidades[i]||'');
-        body.append('referencia', referencias[i]||'');
-        saves.push(fetch("{% url 'registrar_resultado' 0 %}".replace('/0/','/'+currentOE+'/'),{
-          method:'POST', headers:{'X-CSRFToken':csrf,'X-Requested-With':'XMLHttpRequest'}, body
-        }).then(r=>r.json()).then(d=>{ if(d.status==='ok') ok++; else fail++; }).catch(()=>{ fail++; }));
-      }
-    }
 
-    await Promise.all(saves);
-    closeModal(modalResumen);
-    if(ok>0){ showAlert('Enviado a validación'); } else { showAlert('No se pudo guardar', true); }
-    setTimeout(()=>{ location.reload(); },900);
-  });
 
 });
 </script>

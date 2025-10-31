@@ -40,12 +40,20 @@ from .models import Paciente, Orden, OrdenExamen, Resultado, Examen, ExamenParam
 
 @login_required
 def registrar_resultado(request, orden_examen_id):
+    """
+    Guarda resultados individuales sin alterar el estado de la orden ni del examen.
+    El estado solo cambiará cuando el usuario haga clic en 'Enviar a validación'.
+    """
     orden_examen = get_object_or_404(OrdenExamen, id=orden_examen_id)
     if request.method == 'POST':
         parametro = request.POST.get('parametro')
         valor = request.POST.get('valor')
         unidad = request.POST.get('unidad')
         referencia = request.POST.get('referencia')
+        metodo = request.POST.get('metodo')
+        observacion = request.POST.get('observacion')
+        verificado = request.POST.get('verificado') == 'True'
+
         if parametro and valor:
             Resultado.objects.create(
                 orden_examen=orden_examen,
@@ -53,14 +61,16 @@ def registrar_resultado(request, orden_examen_id):
                 valor=valor,
                 unidad=unidad,
                 referencia=referencia,
+                metodo=metodo,
+                observacion=observacion,
+                verificado=verificado
             )
-            orden_examen.estado = "Procesado"
-            orden_examen.save()
-            orden = orden_examen.orden
-            orden.estado = "En proceso"
-            orden.save()
+            # ❌ Ya no se cambia el estado aquí.
             return JsonResponse({'status': 'ok', 'message': 'Resultado registrado correctamente'})
+        else:
+            return JsonResponse({'status': 'error', 'message': 'Datos incompletos'})
     return JsonResponse({'status': 'error', 'message': 'Solicitud inválida'})
+
 
 
 @login_required
@@ -416,122 +426,64 @@ def burbuja_resultado_ajax(request):
 
 
 @login_required
-@require_http_methods(["POST"])
-def modal_resumen_resultados(request):
-    oe_id = request.POST.get('orden_examen_id')
-    if not oe_id:
-        return JsonResponse({'status': 'error', 'message': 'Falta orden_examen_id'}, status=400)
-
-    parametros = request.POST.getlist('parametro[]') or request.POST.getlist('parametro')
-    valores    = request.POST.getlist('valor[]')     or request.POST.getlist('valor')
-    unidades   = request.POST.getlist('unidad[]')    or request.POST.getlist('unidad')
-    refs       = request.POST.getlist('referencia[]')or request.POST.getlist('referencia')
-    ids_exist  = request.POST.getlist('resultado_id[]') or request.POST.getlist('resultado_id')
-
-    if not (parametros and valores):
-        return JsonResponse({'status': 'error', 'message': 'No hay datos de resultados para resumir'}, status=400)
-
-    n = max(len(parametros), len(valores), len(unidades or []), len(refs or []), len(ids_exist or []))
-    def at(lst, i): return lst[i] if (lst and i < len(lst)) else ''
-
-    items = []
-    for i in range(n):
-        p = (at(parametros, i) or '').strip()
-        v = (at(valores, i) or '').strip()
-        u = (at(unidades, i) or '').strip()
-        r = (at(refs, i) or '').strip()
-        rid = (at(ids_exist, i) or '').strip()
-        if p or v or u or r or rid:
-            items.append({'resultado_id': rid, 'parametro': p, 'valor': v, 'unidad': u, 'referencia': r})
-
-    orden_examen = get_object_or_404(
-        OrdenExamen.objects.select_related('orden', 'examen'),
-        id=oe_id
-    )
-    ctx = {
-        'orden_examen': orden_examen,
-        'examen': orden_examen.examen,
-        'paciente': getattr(orden_examen.orden, 'paciente', None),
-        'items': items,
-    }
-    html = render_to_string('laboratorio/partials/resumen_resultados.html', context=ctx, request=request)
-    return JsonResponse({'status': 'ok', 'html': html})
-
-
-@login_required
-@require_http_methods(["POST"])
-@transaction.atomic
+@csrf_exempt
 def guardar_resultados_ajax(request):
-    oe_id = request.POST.get('orden_examen_id')
-    if not oe_id:
-        return JsonResponse({'status': 'error', 'message': 'Falta orden_examen_id'}, status=400)
-
-    orden_examen = get_object_or_404(OrdenExamen, id=oe_id)
-
-    parametros = request.POST.getlist('parametro[]') or request.POST.getlist('parametro')
-    valores    = request.POST.getlist('valor[]')     or request.POST.getlist('valor')
-    unidades   = request.POST.getlist('unidad[]')    or request.POST.getlist('unidad')
-    refs       = request.POST.getlist('referencia[]')or request.POST.getlist('referencia')
-    ids_exist  = request.POST.getlist('resultado_id[]') or request.POST.getlist('resultado_id')
-
-    if not (parametros and valores):
-        return JsonResponse({'status': 'error', 'message': 'No hay datos de resultados para guardar'}, status=400)
-
-    n = max(len(parametros), len(valores), len(unidades or []), len(refs or []), len(ids_exist or []))
-    def at(lst, i): return lst[i] if (lst and i < len(lst)) else ''
-
-    creados, actualizados = 0, 0
-    for i in range(n):
-        p = (at(parametros, i) or '').strip()
-        v = (at(valores, i) or '').strip()
-        u = (at(unidades, i) or '').strip()
-        r = (at(refs, i) or '').strip()
-        rid = (at(ids_exist, i) or '').strip()
-
-        if not (p or v or u or r or rid):
-            continue
-
-        if rid:
-            try:
-                res = Resultado.objects.select_for_update().get(id=rid, orden_examen=orden_examen)
-                res.parametro = p
-                res.valor = v
-                res.unidad = u
-                res.referencia = r
-                res.save(update_fields=['parametro', 'valor', 'unidad', 'referencia'])
-                actualizados += 1
-            except Resultado.DoesNotExist:
-                Resultado.objects.create(
-                    orden_examen=orden_examen,
-                    parametro=p, valor=v, unidad=u, referencia=r
-                )
-                creados += 1
-        else:
-            Resultado.objects.create(
-                orden_examen=orden_examen,
-                parametro=p, valor=v, unidad=u, referencia=r
-            )
-            creados += 1
+    """
+    Versión blindada definitiva:
+    - Nunca redirige por 'Guardar'.
+    - Solo redirige si el POST trae exactamente 'accion': 'enviar_validacion'.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
 
     try:
-        resultados = Resultado.objects.filter(orden_examen=orden_examen).order_by('id')
-        ctx = {
-            'orden_examen': orden_examen,
-            'examen': getattr(orden_examen, 'examen', None),
-            'paciente': getattr(orden_examen.orden, 'paciente', None) if hasattr(orden_examen, 'orden') else None,
-            'resultados': resultados,
-        }
-        html = render_to_string('laboratorio/partials/tabla_resultados.html', context=ctx, request=request)
-        return JsonResponse({'status': 'ok', 'message': f'Guardado correcto. Creados: {creados}, actualizados: {actualizados}', 'html': html})
-    except Exception:
-        return JsonResponse({'status': 'ok', 'message': f'Guardado correcto. Creados: {creados}, actualizados: {actualizados}'})
+        data = json.loads(request.body.decode('utf-8'))
+
+        resultado_id = data.get('id')
+        valor = (data.get('valor') or '').strip()
+        unidad = data.get('unidad')
+        referencia = data.get('referencia')
+        metodo = data.get('metodo')
+        observacion = data.get('observacion')
+        accion = str(data.get('accion') or '').lower().strip()  # <--- clave
+
+        # Actualiza siempre el resultado
+        res = Resultado.objects.select_related('orden_examen__orden').get(id=resultado_id)
+        res.valor = valor
+        res.unidad = unidad
+        res.referencia = referencia
+        res.metodo = metodo
+        res.observacion = observacion
+        if hasattr(res, 'marca_fuera_de_rango'):
+            try:
+                res.marca_fuera_de_rango()
+            except Exception:
+                pass
+        res.save()
+
+        # Solo cambia estado y redirige si la acción fue 'enviar_validacion'
+        if accion == 'enviar_validacion':
+            oe = res.orden_examen
+            orden = oe.orden
+            oe.estado = "En validación"
+            oe.save(update_fields=['estado'])
+            if not orden.examenes.filter(estado__in=["Pendiente", "En proceso"]).exists():
+                orden.estado = "En validación"
+                orden.save(update_fields=['estado'])
+            return JsonResponse({'status': 'redirect', 'redirect_url': '/laboratorio/resultados_home/'})
+
+        # Cualquier otra acción (guardar, etc.) se queda en la pantalla
+        return JsonResponse({'status': 'ok', 'message': 'Cambios guardados correctamente.'})
+
+    except Resultado.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Resultado no encontrado.'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
 
-# Alias para mantener tu URL existente en urls.py
-@login_required
-@require_http_methods(["POST"])
-def guardar_resultados_orden(request):
-    return guardar_resultados_ajax(request)
+
+
+
 
 
 # ------------------------------
@@ -545,7 +497,7 @@ def resultados_home(request):
     - Sin parámetro: lista las últimas 20 órdenes con links a resultados.
     """
     orden_id = request.GET.get('orden_id')
-    if orden_id:
+    if (orden_id):
         return redirect('resultados_orden', orden_id=orden_id)
 
     ordenes = Orden.objects.all().order_by('-fecha')[:20]
@@ -596,39 +548,8 @@ def resultados_lista(request):
         'query': q,
     })
 
-@login_required
-@csrf_exempt
-def guardar_resultados_ajax(request):
-    """
-    Guarda o actualiza los resultados desde la pantalla de carga (AJAX Synlab).
-    """
-    if request.method != 'POST':
-        return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
 
-    try:
-        data = json.loads(request.body.decode('utf-8'))
-        resultado_id = data.get('id')
-        valor = data.get('valor')
-        unidad = data.get('unidad')
-        referencia = data.get('referencia')
-        metodo = data.get('metodo')
-        observacion = data.get('observacion')
 
-        resultado = Resultado.objects.get(id=resultado_id)
-        resultado.valor = valor
-        resultado.unidad = unidad
-        resultado.referencia = referencia
-        resultado.metodo = metodo
-        resultado.observacion = observacion
-        resultado.marca_fuera_de_rango()
-        resultado.save()
-
-        return JsonResponse({'status': 'ok', 'message': 'Resultado guardado correctamente.'})
-
-    except Resultado.DoesNotExist:
-        return JsonResponse({'status': 'error', 'message': 'Resultado no encontrado.'}, status=404)
-    except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 @login_required
 def catalogo_tecnico(request):
     """
@@ -824,5 +745,3 @@ def catalogo_tecnico_export(request):
             '1' if p.acreditado else '0'
         ])
     response = HttpResponse(out.getvalue(), content_type='text/csv; charset=utf-8')
-    response['Content-Disposition'] = 'attachment; filename=catalogo_tecnico.csv'
-    return response

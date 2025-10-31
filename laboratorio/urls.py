@@ -70,4 +70,3 @@ urlpatterns = [
     path('catalogo-tecnico/export', views.catalogo_tecnico_export, name='catalogo_tecnico_export'),
 
 ]
-

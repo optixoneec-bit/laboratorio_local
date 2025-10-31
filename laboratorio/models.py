@@ -94,8 +94,9 @@ class Orden(models.Model):
     medico = models.CharField(max_length=150, blank=True, null=True)
     tipo = models.CharField(max_length=20, choices=[('Rutina', 'Rutina'), ('Urgente', 'Urgente')], default='Rutina')
     estado = models.CharField(max_length=20, choices=[
-        ('Pendiente', 'Pendiente'),
+         ('Pendiente', 'Pendiente'),
         ('En proceso', 'En proceso'),
+        ('En validación', 'En validación'),
         ('Validado', 'Validado'),
     ], default='Pendiente')
     total = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
@@ -146,6 +147,8 @@ class Resultado(models.Model):
     fecha_validacion = models.DateTimeField(blank=True, null=True)
     creado = models.DateTimeField(auto_now_add=True)
     modificado = models.DateTimeField(auto_now=True)
+    verificado = models.BooleanField(default=False)
+
 
     class Meta:
         ordering = ['orden_examen', 'parametro']
