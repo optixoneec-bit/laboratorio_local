@@ -4,34 +4,96 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>{% block title %}SynLab Local{% endblock %}</title>
+<title>{% block title %}VitalityAI{% endblock %}</title>
 <link rel="stylesheet" href="{% static 'laboratorio/css/estilo_ordenes.css' %}">
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
 <style>
-/* 🔹 Encabezado Synlab */
+/* 🔹 Encabezado VITALITYAI (Personalidad Tecnológica y Limpia) */
 .synlab-menu{
   position:fixed;top:0;left:0;right:0;z-index:1000;
-  background:#f9f9f9;border-bottom:1px solid #dcdcdc;
+  background:white;
+  border-bottom:1px solid #dcdcdc;
   display:flex;align-items:center;gap:2rem;
-  padding:6px 16px 4px 16px;box-sizing:border-box;
+  padding:8px 16px 6px 16px;
+  box-sizing:border-box;
 }
-.synlab-menu .logo{display:flex;align-items:center;gap:.6rem;margin-right:1rem;}
-.synlab-menu .logo img{height:28px;}
-.synlab-menu .logo span{font-weight:600;color:#333;font-size:1rem;}
+
+.synlab-menu .logo{display:flex;align-items:center;gap:.4rem;margin-right:1rem;}
+.synlab-menu .logo img{height:40px;}
+
+.synlab-menu .logo .vitality{
+    font-weight:700;
+    color:#1A237E; /* Azul Marino Profundo: Confianza */
+    font-size:1.15rem;
+}
+.synlab-menu .logo .ai{
+    font-weight:700;
+    color:#00BCD4; /* Cian Eléctrico */
+    font-size:1.15rem;
+}
+
 .synlab-menu .nav-item{
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  text-align:center;font-size:.78rem;color:#333;text-decoration:none;font-weight:500;
+  text-align:center;font-size:.8rem;
+  color:#424242;
+  text-decoration:none;font-weight:500;
   width:80px;transition:all .2s ease;
+  padding:4px 0;
 }
-.synlab-menu .nav-item .icon{font-size:1.2rem;margin-bottom:2px;}
-.synlab-menu .nav-item:hover{color:#006d7a;transform:scale(1.05);}
-.synlab-menu .nav-item.active{color:#009bb3;font-weight:600;}
+.synlab-menu .nav-item .icon{font-size:1.3rem;margin-bottom:2px;}
 
-/* 🔹 Ajustes generales */
+.synlab-menu .nav-item:hover{
+    color:#00BCD4;
+    transform:scale(1.05);
+}
+.synlab-menu .nav-item.active{
+    color:#00BCD4;
+    font-weight:600;
+    border-bottom:3px solid #00BCD4;
+    padding-bottom:1px;
+}
+
+/* ⭐ NUEVO: Información del Usuario Logueado (empuja a la derecha) */
+.user-container {
+    margin-left: auto; /* Esto empuja el contenedor a la derecha */
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    font-size: 0.9rem;
+    color: #1A237E; /* Azul Marino Profundo para el nombre */
+    font-weight: 600;
+}
+
+.user-info .icon {
+    font-size: 1.4rem;
+    color: #880E4F; /* Púrpura Vibrante para el ícono */
+    margin-right: 5px;
+}
+
+.logout-link {
+    font-size: 0.8rem;
+    color: #424242;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.logout-link:hover {
+    color: #00BCD4; /* Cian Eléctrico al pasar el ratón */
+    text-decoration: underline;
+}
+
+/* 🔹 Ajustes generales (Sin cambios) */
 body{
-  background-color:#f8f9fc;font-family:'Segoe UI',sans-serif;
-  color:#222;margin:0;padding-top:72px;
+  background-color:#f8f9fc;
+  font-family:'Segoe UI',sans-serif;
+  color:#222;margin:0;
+  padding-top:72px;
 }
 .container{
   max-width:1200px;margin:0 auto;padding:0 16px 60px;
@@ -55,11 +117,10 @@ body{
 
 <body>
 
-<!-- ✅ Encabezado Synlab -->
 <nav class="synlab-menu">
   <div class="logo">
-    <img src="{% static 'laboratorio/img/logo_synlab.png' %}" alt="Synlab">
-    <span>SynLab Local</span>
+    <img src="{% static 'laboratorio/img/logo_synlab.png' %}" alt="VitalityAI Logo">
+    <span class="vitality">Vitality</span><span class="ai">AI</span>
   </div>
 
   <a href="{% url 'lista_ordenes' %}" class="nav-item {% if request.resolver_match.url_name == 'lista_ordenes' %}active{% endif %}">
@@ -72,24 +133,36 @@ body{
     <span class="icon">📚</span><span>Catálogo</span>
   </a>
   <a href="{% url 'catalogo_tecnico' %}" class="nav-item {% if request.resolver_match.url_name == 'catalogo_tecnico' %}active{% endif %}">
-    <span class="icon">📈</span><span>Catalogo Técnico</span>
+    <span class="icon">📈</span><span>Catálogo Téc.</span>
   </a>
   <a href="{% url 'resultados_lista' %}" class="nav-item {% if request.resolver_match.url_name == 'resultados_lista' %}active{% endif %}">
     <span class="icon">🧫</span><span>Resultados</span>
   </a>
-  <a href="#" class="nav-item">
+  <a href="{% url 'validacion_lista' %}" class="nav-item {% if request.resolver_match.url_name == 'validacion_lista' %}active{% endif %}">
     <span class="icon">✅</span><span>Validación</span>
   </a>
   <a href="#" class="nav-item">
     <span class="icon">💰</span><span>Precios</span>
   </a>
+
+  {% if request.user.is_authenticated %}
+  <div class="user-container">
+    <div class="user-info">
+      <span class="icon">👤</span> Hola, {{ request.user.first_name|default:request.user.username }}
+    </div>
+    <a href="{% url 'logout' %}" class="logout-link">
+      (Salir)
+    </a>
+  </div>
+  {% endif %}
+
 </nav>
 
 <!-- ✅ Contenido dinámico -->
 <div class="container">
   {% block content %}{% endblock %}
   <div class="footer">
-    <small>misAnalisisOnline V.4.0.1 — Desarrollado por Cubosoft ® (C) 2025</small>
+    <small>miVitalityAIOnline V.4.0.3 — Desarrollado por Cubosoft ® (C) 2025</small>
   </div>
 </div>
 

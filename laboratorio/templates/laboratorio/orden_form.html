@@ -1,13 +1,22 @@
-{% extends "base.html" %}
-{% block title %}Nueva Orden{% endblock %}
+{% extends "base_star.html" %}
+{% block title %}Nueva Orden — VitalityAI{% endblock %}
 
 {% block extra_head %}
 <style>
+/* ====== TUS VARIABLES Y ESTILOS (sin cambios) ====== */
 :root{ --slx-blue:#2d7bd8; --slx-cyan:#29a7a4; --slx-border:#e3e6ea; --slx-bg:#fff;
 --slx-red:#e85a5e; --slx-green:#cdeedd; --slx-purple:#4b4bf7; }
 .slx-form{font-family:Segoe UI, sans-serif;color:#222;}
+
+/* Usamos grid interno pero nos montamos en la retícula de Star Admin (row/col) */
 .slx-grid{display:grid;grid-template-columns:320px 1fr;gap:18px;}
+@media (max-width: 991.98px){ .slx-grid{grid-template-columns:1fr;} }
+
 .slx-panel{background:var(--slx-bg);border:1px solid var(--slx-border);border-radius:10px;padding:14px;}
+/* Cuando lo metemos dentro de .card, quitamos borde propio para que use el de la card */
+.card .slx-panel{border:none;padding:0;background:transparent;}
+.card .slx-panel .slx-body{padding:14px;}
+
 .slx-title{background:var(--slx-blue);color:#fff;font-weight:700;padding:10px;border-radius:6px;margin-bottom:8px;text-transform:uppercase;}
 .slx-btn-row{text-align:center;margin-bottom:10px;}
 .slx-new-patient{background:var(--slx-purple);color:#fff;font-weight:600;padding:7px 14px;border-radius:6px;border:0;cursor:pointer;font-size:.9rem;}
@@ -21,8 +30,13 @@
 .slx-iconbtn{border:1px solid var(--slx-border);border-radius:8px;background:#fff;padding:0 10px;cursor:pointer;}
 .slx-right{display:flex;flex-direction:column;}
 .slx-searchbar{display:flex;align-items:center;gap:6px;margin-bottom:8px;position:relative;}
+
+/* Integración visual con Star Admin */
+.card .slx-title{border-radius:8px;margin:0 0 12px 0;}
+.card .slx-body .slx-searchbar{margin-top:4px;}
+
 .slx-mini-btn{border:1px solid #b6cdf7;background:#eff5ff;color:#2c59b9;padding:6px 8px;border-radius:8px;font-weight:600;font-size:.8rem;cursor:pointer;}
-.slx-tablewrap{border:1px solid var(--slx-border);border-radius:8px;overflow:hidden;}
+.slx-tablewrap{border:1px solid var(--slx-border);border-radius:8px;overflow:hidden;background:#fff;}
 .slx-thead{display:grid;grid-template-columns:80px 1fr 100px 100px 100px 60px;background:var(--slx-cyan);color:#fff;font-weight:700;font-size:.85rem;}
 .slx-thead>div{padding:6px 8px;border-right:1px solid rgba(255,255,255,.25);}
 .slx-row{display:grid;grid-template-columns:80px 1fr 100px 100px 100px 60px;align-items:center;padding:6px 8px;border-top:1px solid #e3e6ea;}
@@ -42,7 +56,7 @@
 .resultado-item{display:grid;grid-template-columns:100px 1fr 100px;padding:6px 8px;font-size:.9rem;cursor:pointer;align-items:center;}
 .resultado-item:hover{background:#eaf3ff;}
 .resultado-item strong{color:#2d7bd8;}
-/* Modal simple (sin Bootstrap) */
+/* Modal simple */
 .slx-modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:5000;}
 .slx-modal.show{display:flex;}
 .slx-modal__card{background:#fff;border-radius:12px;min-width:320px;max-width:520px;width:92%;box-shadow:0 10px 30px rgba(0,0,0,.2);overflow:hidden;}
@@ -60,93 +74,120 @@
 {% endblock %}
 
 {% block content %}
+
+<!-- ===== Page header (Star Admin) ===== -->
+<div class="page-header">
+  <h3 class="page-title"> Nueva Orden </h3>
+</div>
+
 <form id="formNuevaOrden" method="post" class="slx-form">
   {% csrf_token %}
-  <div class="slx-grid">
-    <aside class="slx-panel slx-left">
-      <header class="slx-title">Datos del paciente</header>
-      <div class="slx-btn-row">
-        <button type="button" id="btnNuevoPaciente" class="slx-new-patient">+ Nuevo Paciente</button>
-      </div>
 
-      <div class="slx-block">
-        <label class="slx-label">Cédula:<span class="slx-req">*</span></label>
-        <div class="slx-searchrow">
-          <input type="text" id="campoDoc" name="documento_identidad" class="slx-input" placeholder="Cédula" required>
-          <button type="button" id="btnBuscarPaciente" class="slx-iconbtn" data-url="{% url 'buscar_paciente_ajax' %}">🔍</button>
+  <div class="row">
+    <!-- ===== Col izquierda ===== -->
+    <div class="col-lg-4">
+      <div class="card">
+        <div class="card-body">
+          <div class="slx-panel">
+            <div class="slx-body">
+              <header class="slx-title">Datos del paciente</header>
+
+              <div class="slx-btn-row">
+                <button type="button" id="btnNuevoPaciente" class="slx-new-patient">+ Nuevo Paciente</button>
+              </div>
+
+              <div class="slx-block">
+                <label class="slx-label">Cédula:<span class="slx-req">*</span></label>
+                <div class="slx-searchrow">
+                  <input type="text" id="campoDoc" name="documento_identidad" class="slx-input" placeholder="Cédula" required>
+                  <button type="button" id="btnBuscarPaciente" class="slx-iconbtn" data-url="{% url 'buscar_paciente_ajax' %}">🔍</button>
+                </div>
+              </div>
+
+              <div class="slx-block">
+                <label class="slx-label">Nombre completo:<span class="slx-req">*</span></label>
+                <input type="text" id="campoNombre" name="nombre_completo" class="slx-input" placeholder="Nombre del paciente" required>
+                <p id="avisoPaciente"></p>
+              </div>
+
+              <div class="slx-block">
+                <div class="slx-priority">
+                  <label class="slx-pri"><input type="radio" name="tipo" value="Urgente"><span>Urgente</span></label>
+                  <span class="slx-sep"></span>
+                  <label class="slx-pri"><input type="radio" name="tipo" value="Prioridad"><span>Prioridad</span></label>
+                  <span class="slx-sep"></span>
+                  <label class="slx-pri"><input type="radio" name="tipo" value="Rutina" checked><span>Rutina</span></label>
+                </div>
+              </div>
+
+              <div class="slx-block">
+                <label class="slx-label">Médico solicitante</label>
+                <input type="text" name="medico" class="slx-input" placeholder="Nombre del médico">
+              </div>
+            </div>
+          </div>
         </div>
       </div>
+    </div>
 
-      <div class="slx-block">
-        <label class="slx-label">Nombre completo:<span class="slx-req">*</span></label>
-        <input type="text" id="campoNombre" name="nombre_completo" class="slx-input" placeholder="Nombre del paciente" required>
-        <p id="avisoPaciente"></p>
-      </div>
+    <!-- ===== Col derecha ===== -->
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-body">
+          <div class="slx-panel">
+            <div class="slx-body">
+              <header class="slx-title">Información de la orden</header>
 
-      <div class="slx-block">
-        <div class="slx-priority">
-          <label class="slx-pri"><input type="radio" name="tipo" value="Urgente"><span>Urgente</span></label>
-          <span class="slx-sep"></span>
-          <label class="slx-pri"><input type="radio" name="tipo" value="Prioridad"><span>Prioridad</span></label>
-          <span class="slx-sep"></span>
-          <label class="slx-pri"><input type="radio" name="tipo" value="Rutina" checked><span>Rutina</span></label>
-        </div>
-      </div>
+              <div class="slx-searchbar">
+                <input type="text" class="slx-input slx-input--search" placeholder="Buscar Análisis">
+                <div class="slx-mini-actions">
+                  <button type="button" class="slx-mini-btn">PERFILES</button>
+                  <button type="button" class="slx-mini-btn">POR. GENERAL</button>
+                </div>
+                <div class="resultados-busqueda" id="resultadosBusqueda" style="display:none;"></div>
+              </div>
 
-      <div class="slx-block">
-        <label class="slx-label">Médico solicitante</label>
-        <input type="text" name="medico" class="slx-input" placeholder="Nombre del médico">
-      </div>
-    </aside>
+              <div class="slx-tablewrap">
+                <div class="slx-thead">
+                  <div>Código</div><div>Análisis</div><div>Estado</div><div>V. Paciente</div><div>V. Pospago</div><div></div>
+                </div>
+                <div class="slx-tbody" id="tbodyExamenes">
+                  <div class="slx-empty">No existen exámenes agregados</div>
+                </div>
+                <div class="slx-totalrow">
+                  <div class="slx-total"><span>Total:</span><strong id="totalValor">$0.00</strong></div>
+                </div>
+              </div>
 
-    <section class="slx-panel slx-right">
-      <header class="slx-title">Información de la orden</header>
+              <div class="slx-samples" style="margin-top:10px; display:flex; flex-wrap:wrap; gap:8px;">
+                <button type="button" class="slx-sample-btn btn btn-sm btn-light">🧾 Etiquetas</button>
+                <button type="button" class="slx-sample-btn btn btn-sm btn-light">🧪 Suero Ayunas</button>
+                <button type="button" class="slx-sample-btn btn btn-sm btn-light">💉 Sangre Total con EDTA</button>
+                <button type="button" class="slx-sample-btn btn btn-sm btn-light">🧫 Urocultivo</button>
+                <button type="button" class="slx-sample-btn btn btn-sm btn-light">🧫 Cultivo</button>
+              </div>
 
-      <div class="slx-searchbar">
-        <input type="text" class="slx-input slx-input--search" placeholder="Buscar Análisis">
-        <div class="slx-mini-actions">
-          <button type="button" class="slx-mini-btn">PERFILES</button>
-          <button type="button" class="slx-mini-btn">POR. GENERAL</button>
-        </div>
-        <div class="resultados-busqueda" id="resultadosBusqueda" style="display:none;"></div>
-      </div>
+              <div class="slx-foot">
+                <div class="slx-foot-title">Generalidades</div>
+                <div class="slx-cta">
+                  <button type="button" id="slxObs" class="slx-big slx-big--blue">👁 Observaciones</button>
+                  <button type="submit" class="slx-big slx-big--green">💾 Guardar</button>
+                  <button type="reset" class="slx-big slx-big--red">🗑 Limpiar</button>
+                </div>
+                <div id="slxObsArea" class="slx-obs" hidden>
+                  <textarea class="slx-input" name="observaciones" rows="3" placeholder="Escribe observaciones…"></textarea>
+                </div>
+              </div>
 
-      <div class="slx-tablewrap">
-        <div class="slx-thead">
-          <div>Código</div><div>Análisis</div><div>Estado</div><div>V. Paciente</div><div>V. Pospago</div><div></div>
-        </div>
-        <div class="slx-tbody" id="tbodyExamenes">
-          <div class="slx-empty">No existen exámenes agregados</div>
-        </div>
-        <div class="slx-totalrow">
-          <div class="slx-total"><span>Total:</span><strong id="totalValor">$0.00</strong></div>
-        </div>
-      </div>
-
-      <div class="slx-samples">
-        <button type="button" class="slx-sample-btn">🧾 Etiquetas</button>
-        <button type="button" class="slx-sample-btn">🧪 Suero Ayunas</button>
-        <button type="button" class="slx-sample-btn">💉 Sangre Total con EDTA</button>
-        <button type="button" class="slx-sample-btn">🧫 Urocultivo</button>
-        <button type="button" class="slx-sample-btn">🧫 Cultivo</button>
-      </div>
-
-      <div class="slx-foot">
-        <div class="slx-foot-title">Generalidades</div>
-        <div class="slx-cta">
-          <button type="button" id="slxObs" class="slx-big slx-big--blue">👁 Observaciones</button>
-          <button type="submit" class="slx-big slx-big--green">💾 Guardar</button>
-          <button type="reset" class="slx-big slx-big--red">🗑 Limpiar</button>
-        </div>
-        <div id="slxObsArea" class="slx-obs" hidden>
-          <textarea class="slx-input" name="observaciones" rows="3" placeholder="Escribe observaciones…"></textarea>
-        </div>
-      </div>
-    </section>
-  </div>
+            </div> <!-- /.slx-body -->
+          </div> <!-- /.slx-panel -->
+        </div> <!-- /.card-body -->
+      </div> <!-- /.card -->
+    </div>
+  </div> <!-- /.row -->
 </form>
 
-<!-- MODAL NUEVO PACIENTE -->
+<!-- ===== MODAL NUEVO PACIENTE ===== -->
 <div id="modalPaciente" class="slx-modal" aria-hidden="true" role="dialog">
   <div class="slx-modal__card">
     <div class="slx-modal__head">
@@ -199,6 +240,9 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
 <script>
 (function(){
   const btnObs=document.getElementById('slxObs');
@@ -220,7 +264,7 @@
     aviso.textContent = msg;
   }
 
-  // Buscar paciente (por documento_identidad)
+  // Buscar paciente
   const btnBuscarPaciente = document.getElementById('btnBuscarPaciente');
   const campoDoc = document.getElementById('campoDoc');
   const campoNombre = document.getElementById('campoNombre');
@@ -267,13 +311,13 @@
   const mpDir = document.getElementById('mpDir');
 
   function openModal(){
-    // precargar doc/nombre si ya los escribió
     mpDoc.value = (campoDoc.value || '').trim();
     const partes = (campoNombre.value || '').trim().split(' ');
     mpNom.value = partes.length ? partes[0] : '';
     mpApe.value = partes.slice(1).join(' ');
     mpSexo.value = '';
-    mpFNac.value = ''; mpTel.value=''; mpMail.value=''; mpDir.value='';
+    mpFNac.value = '';
+    mpTel.value=''; mpMail.value=''; mpDir.value='';
     mpAviso.textContent='';
     modal.classList.add('show'); modal.setAttribute('aria-hidden','false');
   }
@@ -318,7 +362,6 @@
       });
       const data = await r.json();
       if(r.ok && data.status === 'ok'){
-        // Rellenar el form principal y cerrar modal
         campoDoc.value = data.paciente.documento_identidad || doc;
         campoNombre.value = data.paciente.nombre_completo || (nombres + (apellidos?(' '+apellidos):''));
         setAviso('Paciente creado.', 'ok');
@@ -363,7 +406,7 @@
     row.innerHTML=`
       <div>${codigo}</div>
       <div>${nombre}</div>
-      <div><span class="badge bg-info">Pendiente</span></div>
+      <div><span class="badge badge-info">Pendiente</span></div>
       <div style="text-align:right;">$${precio.toFixed(2)}</div>
       <div style="text-align:right;">$${precio.toFixed(2)}</div>
       <div><button type="button" class="btn-del">✖</button></div>`;
@@ -397,30 +440,18 @@
     if(aviso){aviso.style.display='none';}
   });
 
-  // ---------- BLOQUE NUEVO ----------
+  // ---------- Envío: genera insumos ocultos con exámenes ----------
   form.addEventListener('submit', function() {
-    // Eliminar anteriores (en caso de reenvío)
     form.querySelectorAll('input[name="examen_codigo[]"], input[name="examen_precio[]"]').forEach(el => el.remove());
-
     const filas = tbody.querySelectorAll('.slx-row');
     filas.forEach(f => {
       const celdas = f.querySelectorAll('div');
       if (celdas.length >= 5) {
         const codigo = celdas[0].textContent.trim();
         const precio = (celdas[3].textContent || '').replace('$','').trim();
-
-        const inputCodigo = document.createElement('input');
-        inputCodigo.type = 'hidden';
-        inputCodigo.name = 'examen_codigo[]';
-        inputCodigo.value = codigo;
-
-        const inputPrecio = document.createElement('input');
-        inputPrecio.type = 'hidden';
-        inputPrecio.name = 'examen_precio[]';
-        inputPrecio.value = precio;
-
-        form.appendChild(inputCodigo);
-        form.appendChild(inputPrecio);
+        const inputCodigo = document.createElement('input'); inputCodigo.type='hidden'; inputCodigo.name='examen_codigo[]'; inputCodigo.value=codigo;
+        const inputPrecio = document.createElement('input'); inputPrecio.type='hidden'; inputPrecio.name='examen_precio[]'; inputPrecio.value=precio;
+        form.appendChild(inputCodigo); form.appendChild(inputPrecio);
       }
     });
   });

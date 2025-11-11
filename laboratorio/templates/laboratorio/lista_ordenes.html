@@ -1,47 +1,100 @@
-{% extends "base.html" %}
+{% extends "base_star.html" %}
 {% block title %}Lista de resultados{% endblock %}
 
 {% block content %}
+
 <!-- Filtros -->
-<div class="card filtros">
-  <div class="card-body">
-    <div class="grid">
-      <div class="col-3"><label class="label">Desde</label><input type="date" class="input"/></div>
-      <div class="col-3"><label class="label">Hasta</label><input type="date" class="input"/></div>
-      <div class="col-3"><label class="label">Buscar: Orden</label><input type="search" class="input" placeholder="Buscar número de orden"/></div>
-      <div class="col-3"><label class="label">Buscar: cédula o nombre</label><input type="search" class="input" placeholder="Buscar paciente"/></div>
+<div class="row mb-3">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body py-3">
+        <form class="row g-3 align-items-end">
+          <div class="col-12 col-md-3">
+            <label class="form-label">Desde</label>
+            <input type="date" name="desde" class="form-control"/>
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label">Hasta</label>
+            <input type="date" name="hasta" class="form-control"/>
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label">Buscar: Orden</label>
+            <input type="search" name="orden" class="form-control" placeholder="Número de orden"/>
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label">Buscar: cédula o nombre</label>
+            <input type="search" name="paciente" class="form-control" placeholder="Paciente"/>
+          </div>
+          <!-- Si más adelante quieres el botón de filtrar, descomenta:
+          <div class="col-12 col-md-3">
+            <button class="btn btn-primary w-100"><i class="mdi mdi-filter-outline me-1"></i>Filtrar</button>
+          </div>
+          -->
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Encabezado lista -->
+<div class="row">
+  <div class="col-12">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h4 class="mb-0">Lista de resultados</h4>
+      <span class="text-muted">{{ ordenes.count }} registro(s) encontrados</span>
     </div>
   </div>
 </div>
 
 <!-- Lista -->
-<div id="ordenContainer" class="card lista">
-  <div class="list-head">
-    <span class="list-title">Lista de resultados</span>
-    <div class="list-right">
-      <span class="list-count">{{ ordenes.count }} registro(s) encontrados</span>
-    </div>
-  </div>
-
-  <div id="ordenList" class="list-body">
-    {% for orden in ordenes %}
-    <div class="item">
-      <div class="indice">{{ orden.numero_orden }}</div>
-      <div class="item-body">
-        <div class="nombre">{{ orden.paciente.nombre_completo }}</div>
-        <div class="row-meta">
-          <div class="meta">📅 {{ orden.fecha|date:"d/m/Y H:i" }}</div>
-          <div class="meta">🆔 {{ orden.paciente.documento_identidad }}</div>
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body p-0">
+        {% if ordenes %}
+        <div class="table-responsive">
+          <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th style="width:110px;">Orden</th>
+                <th>Paciente</th>
+                <th style="width:220px;">Fecha</th>
+                <th style="width:220px;">Documento</th>
+                <th style="width:160px;" class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for orden in ordenes %}
+              <tr>
+                <td class="fw-semibold">ORD{{ orden.numero_orden }}</td>
+                <td>
+                  <div class="fw-semibold">{{ orden.paciente.nombre_completo }}</div>
+                </td>
+                <td>
+                  <i class="mdi mdi-calendar-clock me-1"></i>{{ orden.fecha|date:"d/m/Y H:i" }}
+                </td>
+                <td>
+                  <i class="mdi mdi-card-account-details-outline me-1"></i>{{ orden.paciente.documento_identidad }}
+                </td>
+                <td class="text-end">
+                  <a href="{% url 'detalle_orden' orden.id %}" class="btn btn-sm btn-outline-primary me-1">
+                    <i class="mdi mdi-eye-outline"></i> Revisar
+                  </a>
+                  <a href="{% url 'orden_pdf' orden.id %}" class="btn btn-sm btn-outline-secondary">
+                    <i class="mdi mdi-file-pdf-box"></i> PDF
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
-        <div class="acciones">
-          <a href="{% url 'detalle_orden' orden.id %}" class="action revisar">👁 Revisar</a>
-          <a href="{% url 'orden_pdf' orden.id %}" class="action pdf">📄 PDF</a>
-        </div>
+        {% else %}
+          <div class="p-4 text-center text-muted">No hay órdenes registradas.</div>
+        {% endif %}
       </div>
     </div>
-    {% empty %}
-    <p class="text-center py-4 text-muted">No hay órdenes registradas.</p>
-    {% endfor %}
   </div>
 </div>
+
 {% endblock %}

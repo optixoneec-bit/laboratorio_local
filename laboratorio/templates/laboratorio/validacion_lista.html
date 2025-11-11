@@ -1,0 +1,355 @@
+{% extends "base_star.html" %}
+{% block title %}Validación de resultados{% endblock %}
+
+{% block extra_head %}
+<style>
+/* 🎨 Paleta VitalityAI (Rediseño Front-End) */
+:root{
+  --va-blue-deep: #1A237E; 
+  --va-purple: #880E4F; 
+  --va-cyan: #00BCD4; 
+  --va-border: #E5E7EB; 
+  --va-bg: #FFFFFF; 
+  --va-gray-text: #424242; 
+  --va-green-ok: #28a745; 
+  --va-red-err: #dc3545; 
+}
+
+/* --- Rediseño de la Tarjeta Principal (slx-card) --- */
+.slx-card{
+  background:var(--va-bg);
+  border:1px solid var(--va-border);
+  border-radius:12px;
+  padding:20px;
+  box-shadow:0 8px 20px rgba(0,0,0,.08); 
+}
+
+/* Rediseño del Título (slx-title) */
+.slx-title{
+  background:var(--va-blue-deep);
+  color:#fff;
+  font-weight:700;
+  padding:12px 18px;
+  border-radius:10px;
+  margin-bottom:20px;
+  text-transform:uppercase;
+  display:flex;align-items:center;gap:10px;
+  font-size:1.2rem;
+}
+
+/* --- TABLA: Estilo Limpio y Corrección de Filas --- */
+.table{width:100%;border-collapse:collapse}
+
+.table th{
+  background:#f9fafb;
+  text-align:left;
+  padding:12px 12px;
+  border-bottom:2px solid var(--va-border);
+  font-size:.9rem;
+  color:#6B7280;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.table td{
+  padding:15px 12px;
+  border-bottom:1px solid #F3F4F6;
+  font-size:.92rem;
+  /* ⭐ SOLUCIÓN CLÁSICA: Centrado Vertical ⭐ */
+  vertical-align: middle; 
+}
+
+.table tbody tr:hover {
+    background-color: #F9FAFB;
+}
+
+/* ⭐ SOLUCIÓN FINAL: Alineación de contenido dentro de la celda de acción ⭐ */
+.table td.actions {
+  text-align: center; /* Centrado horizontal del contenido de la celda */
+  display: table-cell; /* Asegurar que no haya herencia de flexbox */
+  /* padding: 15px 12px; se mantiene el padding general del td */
+}
+
+/* El botón se alinea horizontal y verticalmente con el centrado del TD */
+.actions .btn{
+  display: inline-block; 
+  margin: 0 auto; /* Ayuda a que text-align: center funcione */
+  white-space: nowrap; /* Evita que el botón salte de línea */
+}
+
+/* --- TEXTOS Y BADGES --- */
+.badge{
+  display:inline-block;
+  padding:3px 10px;
+  border-radius:12px;
+  font-size:.75rem;
+  font-weight: 600;
+  border:1px solid #E5E7EB;
+  background:#EFF6FF; 
+  color:var(--va-blue-deep);
+}
+
+.small{color:var(--va-gray-text);font-size:1rem;font-weight:600;} 
+.meta{color:#9CA3AF;font-size:.85rem;margin-top:3px;} 
+
+/* --- BOTONES Y ALERTAS --- */
+.btn{border:0;border-radius:8px;padding:9px 14px;font-weight:600;cursor:pointer;transition:background .2s, transform .1s}
+.btn:hover{transform:translateY(-1px);box-shadow:0 3px 6px rgba(0,0,0,.1);}
+
+/* Botón principal de Revisar (Púrpura Vibrante) */
+.btn.blue{background:var(--va-purple);color:#fff}
+.btn.blue:hover{background: #A03370;}
+
+/* Botones genéricos (Modal) */
+.btn.green{background:var(--va-green-ok);color:#fff}
+.btn.red{background:var(--va-red-err);color:#fff}
+.btn.gray{background:#e5e7eb;color:#111827}
+.btn.gray:hover{background: #D1D5DB;}
+
+
+.alert{margin-top:20px;border-radius:8px;padding:15px;font-size:.95rem;font-weight:500;}
+.alert.ok{display:block;background:#E9FDD7;border:1px solid var(--va-green-ok);color:#065f46;}
+.alert.err{display:block;background:#FDECEB;border:1px solid var(--va-red-err);color:#7f1d1d;}
+
+/* --- MODAL (Diseño Moderno) --- */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:5000;}
+.modal.show{display:flex;}
+.modal-card{background:#fff;border-radius:12px;min-width:400px;max-width:960px;width:90%;box-shadow:0 15px 40px rgba(0,0,0,.3);overflow:hidden;}
+.modal-head{
+  background:var(--va-cyan); /* Encabezado del modal en Cian Eléctrico */
+  color:#fff;
+  font-weight:700;
+  padding:15px 20px;
+  display:flex;justify-content:space-between;align-items:center;
+  font-size:1.2rem;
+}
+.modal-body{padding:25px;max-height:80vh;overflow:auto;}
+.modal-foot{display:flex;gap:10px;justify-content:flex-end;padding:15px 20px;border-top:1px solid #eee;}
+
+#m-alert{display:none;margin:0 25px 25px;border-radius:8px;padding:15px;font-size:.95rem;font-weight:500;}
+#m-alert.err{display:block;background:#FDECEB;border:1px solid var(--va-red-err);color:#7f1d1d;}
+
+.modal-head .btn.gray {
+    background: transparent;
+    color: white;
+    font-size: 1.2rem;
+    padding: 6px 10px;
+    opacity: 0.8;
+}
+.modal-head .btn.gray:hover {
+    background: rgba(255, 255, 255, 0.2);
+    opacity: 1;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="slx-card">
+  <div class="slx-title">
+    <span class="icon">🧪</span> Validación de resultados
+  </div>
+
+  <form class="hidden">{% csrf_token %}</form>
+
+  {% if not ordenes %}
+    <p class="meta">No hay órdenes en validación.</p>
+  {% else %}
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Orden</th>
+          <th>Paciente</th>
+          <th>Exámenes</th>
+          <th style="width:160px;">ACCIÓN</th> 
+        </tr>
+      </thead>
+      <tbody>
+      {% for o in ordenes %}
+        <tr data-orden="{{ o.id }}">
+          <td>
+            <div class="small"><strong>{{ o.numero_orden }}</strong></div>
+            <div class="meta">{{ o.fecha|date:"d/m/Y H:i" }}</div>
+            <div class="meta">Estado: <span class="badge">{{ o.estado }}</span></div> 
+          </td>
+          <td>
+            <div class="small"><strong>{{ o.paciente.nombre_completo }}</strong></div>
+            <div class="meta">{{ o.paciente.documento_identidad }}</div>
+          </td>
+          <td>
+            {% for oe in o.examenes.all %}
+              <div class="meta">• {{ oe.examen.nombre }} <span class="badge">{{ oe.estado }}</span></div>
+            {% endfor %}
+          </td>
+          <td class="actions">
+            <button class="btn blue btn-revisar" data-orden="{{ o.id }}" type="button">Revisar</button>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  <div id="alerta" class="alert"></div>
+</div>
+
+<div id="modalValidacion" class="modal" aria-hidden="true">
+  <div class="modal-card">
+    <div class="modal-head">
+      <div>🔎 Revisión y validación</div>
+      <button type="button" id="m-cerrar" class="btn gray">✖</button>
+    </div>
+    <div id="m-alert"></div>
+    <div id="m-body" class="modal-body"></div>
+    <div class="modal-foot">
+      <button type="button" id="m-cancelar" class="btn gray">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded',()=>{
+  const alerta = document.getElementById('alerta'); 
+  const mAlert = document.getElementById('m-alert'); 
+  const csrf = (document.querySelector('[name=csrfmiddlewaretoken]')||{}).value || '';
+
+  const ok = (m)=>{ alerta.className='alert ok'; alerta.textContent=m; };
+  const er = (m)=>{ alerta.className='alert err'; alerta.textContent=m; }; 
+  
+  const mer = (m)=>{ 
+    mAlert.className='alert err'; 
+    mAlert.textContent='⚠️ '+m; 
+  };
+  const mclear = ()=>{ mAlert.className=''; mAlert.textContent=''; };
+
+
+  const modal = document.getElementById('modalValidacion');
+  const mbody = document.getElementById('m-body');
+  const showModal = ()=>{ 
+    modal.classList.add('show'); 
+    modal.setAttribute('aria-hidden','false'); 
+    mclear(); 
+  };
+  const closeModal = ()=>{ 
+    modal.classList.remove('show'); 
+    modal.setAttribute('aria-hidden','true'); 
+    mbody.innerHTML=''; 
+    mclear(); 
+  };
+
+  document.getElementById('m-cerrar').addEventListener('click', closeModal);
+  document.getElementById('m-cancelar').addEventListener('click', closeModal);
+  modal.addEventListener('click',(e)=>{ if(e.target===modal) closeModal(); });
+
+  document.querySelectorAll('.btn-revisar').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const oid = b.dataset.orden;
+      fetch("{% url 'validacion_modal_html' 0 %}".replace('/0/','/'+oid+'/'), {headers:{'X-Requested-With':'XMLHttpRequest'}})
+      .then(r=>r.json())
+      .then(d=>{
+        if(d.status==='ok'){
+          mbody.innerHTML = d.html;
+          wireModalActions(); 
+          showModal();
+        } else {
+          er(d.message||'No se pudo cargar el modal');
+        }
+      })
+      .catch(()=>er('Error de red'));
+    });
+  });
+
+  function wireModalActions(){
+    mclear(); 
+
+    mbody.querySelectorAll('.btn-validar')?.forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        mclear(); 
+        const id = btn.dataset.id;
+        fetch("{% url 'validar_parametro_ajax' 0 %}".replace('/0/','/'+id+'/'),{
+          method:'POST',
+          headers:{'X-CSRFToken': csrf, 'X-Requested-With':'XMLHttpRequest'}
+        }).then(r=>r.json()).then(d=>{
+          if(d.status==='ok'){ ok('Parámetro validado'); refreshModal(); }
+          else{ mer(d.message||'Error al validar parámetro'); }
+        }).catch(()=>mer('Error de red al validar parámetro'));
+      });
+    });
+
+    mbody.querySelectorAll('.btn-anular')?.forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        mclear(); 
+        const id = btn.dataset.id;
+        fetch("{% url 'anular_parametro_ajax' 0 %}".replace('/0/','/'+id+'/'),{
+          method:'POST',
+          headers:{'X-CSRFToken': csrf, 'X-Requested-With':'XMLHttpRequest'}
+        }).then(r=>r.json()).then(d=>{
+          if(d.status==='ok'){ ok('Validación anulada'); refreshModal(); }
+          else{ mer(d.message||'Error al anular validación'); }
+        }).catch(()=>mer('Error de red al anular'));
+      });
+    });
+
+    const btnDev = mbody.querySelector('#btnDevolverOrden');
+    if(btnDev){
+      btnDev.addEventListener('click', ()=>{
+        mclear(); 
+        const oid = btnDev.dataset.orden;
+        fetch("{% url 'devolver_a_resultados_ajax' 0 %}".replace('/0/','/'+oid+'/'),{
+          method:'POST',
+          headers:{'X-CSRFToken': csrf, 'X-Requested-With':'XMLHttpRequest'}
+        }).then(r=>r.json()).then(d=>{
+          if(d.status==='ok'){ ok('Orden devuelta a resultados'); setTimeout(()=>{ closeModal(); location.reload(); }, 600); }
+          else{ mer(d.message||'Error al devolver orden'); }
+        }).catch(()=>mer('Error de red al devolver'));
+      });
+    }
+
+    const btnC = mbody.querySelector('#btnCerrarValidacion');
+    if (btnC) {
+      btnC.textContent = 'Enviar validación'; // Cambia el texto del botón
+      btnC.addEventListener('click', (e) => { 
+        const pendingValidations = mbody.querySelectorAll('.btn-validar').length;
+        if (pendingValidations > 0) {
+          mer(`Hay ${pendingValidations} parámetros aún pendientes de validación. Valida todos antes de enviar la orden.`);
+          e.stopPropagation(); 
+          e.preventDefault(); 
+          return; 
+        }
+        mclear(); 
+        
+        const oid = btnC.dataset.orden;
+        fetch("{% url 'cerrar_validacion_orden_ajax' 0 %}".replace('/0/', '/' + oid + '/'), {
+          method: 'POST',
+          headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(r => r.json()).then(d => {
+          if (d.status === 'ok') { 
+            ok('Orden enviada a validación'); 
+            setTimeout(() => { closeModal(); location.reload(); }, 600); 
+          } else { 
+            mer(d.message || 'No se pudo enviar la validación'); 
+          }
+        }).catch(() => mer('Error de red al enviar validación'));
+      });
+    }
+  }
+
+  function refreshModal(){
+    const btnDev = mbody.querySelector('#btnDevolverOrden');
+    const oid = btnDev ? btnDev.dataset.orden : null;
+    if(!oid) return;
+    fetch("{% url 'validacion_modal_html' 0 %}".replace('/0/','/'+oid+'/'), {headers:{'X-Requested-With':'XMLHttpRequest'}})
+    .then(r=>r.json())
+    .then(d=>{
+      if(d.status==='ok'){
+        mbody.innerHTML = d.html;
+        wireModalActions();
+      } else {
+        mer(d.message||'Error al refrescar el modal');
+      }
+    })
+    .catch(()=>mer('Error de red al refrescar'));
+  }
+});
+</script>
+{% endblock %}

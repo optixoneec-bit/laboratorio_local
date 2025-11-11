@@ -69,4 +69,13 @@ urlpatterns = [
     path('catalogo-tecnico/import', views.catalogo_tecnico_import, name='catalogo_tecnico_import'),
     path('catalogo-tecnico/export', views.catalogo_tecnico_export, name='catalogo_tecnico_export'),
 
+    # -----------------------------
+    # Módulo Validación (lista + modal)
+    # -----------------------------
+    path('validacion/', views.validacion_lista, name='validacion_lista'),
+    path('validacion/modal/<int:orden_id>/', views.validacion_modal_html, name='validacion_modal_html'),
+    path('validacion/parametro/<int:resultado_id>/validar/', views.validar_parametro_ajax, name='validar_parametro_ajax'),
+    path('validacion/parametro/<int:resultado_id>/anular/', views.anular_parametro_ajax, name='anular_parametro_ajax'),
+    path('validacion/orden/<int:orden_id>/devolver/', views.devolver_a_resultados_ajax, name='devolver_a_resultados_ajax'),
+    path('validacion/orden/<int:orden_id>/cerrar/', views.cerrar_validacion_orden_ajax, name='cerrar_validacion_orden_ajax'),
 ]

@@ -745,3 +745,230 @@ def catalogo_tecnico_export(request):
             '1' if p.acreditado else '0'
         ])
     response = HttpResponse(out.getvalue(), content_type='text/csv; charset=utf-8')
+
+    # ------------------------------
+# MÓDULO DE VALIDACIÓN (DESDE CERO)
+# ------------------------------
+from django.views.decorators.http import require_http_methods
+
+@login_required
+def validacion_lista(request):
+    """
+    Lista de órdenes candidatas a validación.
+    Criterio:
+      - Órdenes que tengan al menos un OrdenExamen en 'En validación', o
+      - Órdenes que no tengan OrdenExamen en 'Pendiente' o 'En proceso',
+        y que NO estén todavía 'Validado'.
+    """
+    ordenes = (
+        Orden.objects
+        .select_related('paciente')
+        .prefetch_related('examenes__examen', 'examenes__resultados')
+        .order_by('-fecha')
+    )
+
+    candidatas = []
+    for o in ordenes:
+        estados_oe = [(oe.estado or '').strip() for oe in o.examenes.all()]
+        tiene_en_validacion = any(s == 'En validación' for s in estados_oe)
+        sin_pendientes = not any(s in ['Pendiente', 'En proceso'] for s in estados_oe)
+        if tiene_en_validacion or (sin_pendientes and (o.estado or '') != 'Validado'):
+            candidatas.append(o)
+
+    return render(request, 'laboratorio/validacion_lista.html', {
+        'ordenes': candidatas
+    })
+
+
+@login_required
+@require_http_methods(["POST"])
+def validar_parametro_ajax(request, resultado_id):
+    """
+    Valida un parámetro (Resultado).
+    Si todos los resultados del OrdenExamen quedan validados -> OrdenExamen.estado = 'Validado'.
+    Si todos los OrdenExamen de la Orden quedan 'Validado' -> Orden.estado = 'Validado'.
+    """
+    try:
+        r = Resultado.objects.select_related('orden_examen__orden').get(id=resultado_id)
+    except Resultado.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Resultado no encontrado.'}, status=404)
+
+    r.validado = True
+    r.validado_por = request.user
+    r.fecha_validacion = timezone.now()
+    r.save(update_fields=['validado', 'validado_por', 'fecha_validacion'])
+
+    oe = r.orden_examen
+    # ¿Todos los resultados del OE validados?
+    if not oe.resultados.filter(validado=False).exists():
+        if (oe.estado or '') != 'Validado':
+            oe.estado = 'Validado'
+            oe.save(update_fields=['estado'])
+
+    # ¿Toda la orden validada?
+    orden = oe.orden
+    if not orden.examenes.filter(estado__in=['Pendiente', 'En proceso', 'Procesado', 'En validación']).exists():
+        if (orden.estado or '') != 'Validado':
+            orden.estado = 'Validado'
+            orden.save(update_fields=['estado'])
+
+    return JsonResponse({'status': 'ok'})
+
+
+@login_required
+@require_http_methods(["POST"])
+def anular_parametro_ajax(request, resultado_id):
+    """
+    Anula la validación de un parámetro.
+    El OrdenExamen vuelve a 'En validación'.
+    La Orden, si estaba 'Validado', pasa a 'En validación'.
+    """
+    try:
+        r = Resultado.objects.select_related('orden_examen__orden').get(id=resultado_id)
+    except Resultado.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Resultado no encontrado.'}, status=404)
+
+    r.validado = False
+    r.validado_por = None
+    r.fecha_validacion = None
+    r.save(update_fields=['validado', 'validado_por', 'fecha_validacion'])
+
+    oe = r.orden_examen
+    if (oe.estado or '') != 'En validación':
+        oe.estado = 'En validación'
+        oe.save(update_fields=['estado'])
+
+    orden = oe.orden
+    if (orden.estado or '') == 'Validado':
+        orden.estado = 'En validación'
+        orden.save(update_fields=['estado'])
+
+    return JsonResponse({'status': 'ok'})
+
+
+@login_required
+@require_http_methods(["POST"])
+def devolver_a_resultados_ajax(request, orden_id):
+    """
+    Devuelve la ORDEN a resultados:
+      - Todo OrdenExamen con resultados no validados -> 'En proceso'
+      - La Orden -> 'En proceso'
+    """
+    try:
+        orden = Orden.objects.prefetch_related('examenes__resultados').get(id=orden_id)
+    except Orden.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Orden no encontrada.'}, status=404)
+
+    for oe in orden.examenes.all():
+        # Si tiene algún resultado no validado, lo regresamos a 'En proceso'
+        if oe.resultados.filter(validado=False).exists():
+            if (oe.estado or '') != 'En proceso':
+                oe.estado = 'En proceso'
+                oe.save(update_fields=['estado'])
+
+    if (orden.estado or '') != 'En proceso':
+        orden.estado = 'En proceso'
+        orden.save(update_fields=['estado'])
+
+    return JsonResponse({'status': 'ok'})
+
+
+@login_required
+@require_http_methods(["POST"])
+def cerrar_validacion_orden_ajax(request, orden_id):
+    """
+    Cierra la validación de la ORDEN:
+      - Verifica que TODOS los Resultados estén validados.
+      - Si algo no está validado -> 409.
+      - Si todo ok: todos los OE = 'Validado' y Orden = 'Validado'.
+    """
+    try:
+        orden = Orden.objects.prefetch_related('examenes__resultados').get(id=orden_id)
+    except Orden.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Orden no encontrada.'}, status=404)
+
+    # ¿Hay algún resultado sin validar?
+    for oe in orden.examenes.all():
+        if oe.resultados.filter(validado=False).exists():
+            return JsonResponse({'status': 'error', 'message': 'Aún hay parámetros sin validar.'}, status=409)
+
+    # Marca todos los OE como 'Validado'
+    for oe in orden.examenes.all():
+        if (oe.estado or '') != 'Validado':
+            oe.estado = 'Validado'
+            oe.save(update_fields=['estado'])
+
+    # Marca la Orden como 'Validado'
+    if (orden.estado or '') != 'Validado':
+        orden.estado = 'Validado'
+        orden.save(update_fields=['estado'])
+
+    return JsonResponse({'status': 'ok'})
+# --- AÑADIR AL FINAL DE views.py (sin mover nada de arriba) ---
+@login_required
+@require_http_methods(["GET"])
+def validacion_modal_html(request, orden_id):
+    """
+    Devuelve HTML (como JSON) para poblar el modal de validación
+    sin usar un template separado (cumple: el modal vive en la misma página).
+    """
+    try:
+        orden = (
+            Orden.objects
+            .select_related('paciente')
+            .prefetch_related('examenes__examen', 'examenes__resultados')
+            .get(id=orden_id)
+        )
+    except Orden.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Orden no encontrada.'}, status=404)
+
+    # Construcción de HTML simple: encabezado + lista de parámetros con botones
+    parts = []
+    parts.append(f'''
+      <div class="small" style="margin-bottom:8px;">
+        <div><strong>Orden:</strong> {orden.numero_orden}</div>
+        <div><strong>Paciente:</strong> {orden.paciente.nombre_completo} — {orden.paciente.documento_identidad}</div>
+        <div><strong>Fecha:</strong> {orden.fecha.strftime("%d/%m/%Y %H:%M")}</div>
+        <div><strong>Estado:</strong> <span class="badge">{orden.estado or ""}</span></div>
+      </div>
+      <div style="max-height:60vh;overflow:auto;border:1px solid #e5e7eb;border-radius:8px;padding:8px;">
+    ''')
+
+    for oe in orden.examenes.all():
+        parts.append(f'''
+          <div style="margin:8px 0 6px 0;font-weight:700;">
+            {oe.examen.nombre} <span class="badge">{oe.examen.codigo}</span>
+            <span class="badge">{oe.estado or ""}</span>
+          </div>
+        ''')
+        if oe.resultados.exists():
+            for r in oe.resultados.all():
+                ver_btn = (f'<button type="button" class="btn green btn-validar" data-id="{r.id}">Validar</button>') if not r.validado else ''
+                anu_btn = (f'<button type="button" class="btn gray btn-anular" data-id="{r.id}">Anular</button>') if r.validado else ''
+                unidad = f'<span class="badge">{r.unidad}</span>' if r.unidad else ''
+                ref = f'<span class="badge">{r.referencia}</span>' if r.referencia else ''
+                met = f'<span class="badge">{r.metodo}</span>' if r.metodo else ''
+                obs = f'<span class="badge">{r.observacion}</span>' if r.observacion else ''
+                val_tag = '<span class="badge" style="border-color:#34d399;background:#ecfdf5;color:#065f46;">✓ Validado</span>' if r.validado else '<span class="badge">Pendiente</span>'
+
+                parts.append(f'''
+                  <div class="meta" data-rid="{r.id}" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:4px 0;">
+                    <span>{r.parametro} = <strong>{(r.valor or "")}</strong></span>
+                    {unidad}{ref}{met}{obs}{val_tag}
+                    {ver_btn}{anu_btn}
+                  </div>
+                ''')
+        else:
+            parts.append('<div class="meta">Sin resultados en este examen.</div>')
+
+    # Acciones de orden (todas dentro del modal)
+    parts.append(f'''
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;">
+        <button type="button" class="btn red" id="btnDevolverOrden" data-orden="{orden.id}">Devolver a resultados</button>
+        <button type="button" class="btn green" id="btnCerrarValidacion" data-orden="{orden.id}">Cerrar validación</button>
+      </div>
+    ''')
+
+    html = ''.join(parts)
+    return JsonResponse({'status': 'ok', 'html': html})
