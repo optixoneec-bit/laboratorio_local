@@ -1,404 +1,374 @@
 {% extends "base_star.html" %}
+{% load static %}
 {% block title %}Catálogo Técnico{% endblock %}
 
 {% block extra_head %}
 <style>
-:root{
-  --slx-blue:#2d7bd8; --slx-cyan:#29a7a4; --slx-border:#e3e6ea; --slx-bg:#fff; --slx-gray:#8e98a7;
-}
-.slx-card{background:var(--slx-bg);border:1px solid var(--slx-border);border-radius:12px;padding:16px 18px;box-shadow:0 2px 6px rgba(0,0,0,.04);}
-.slx-title{background:var(--slx-blue);color:#fff;font-weight:700;padding:10px 14px;border-radius:8px;margin-bottom:14px;text-transform:uppercase;}
-.slx-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;}
-.slx-input{border:1px solid var(--slx-border);border-radius:8px;padding:8px 10px;font-size:.9rem;}
-.slx-btn{background:var(--slx-blue);color:#fff;border:0;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer;}
-.slx-btn.cyan{background:var(--slx-cyan);}
-.slx-btn.gray{background:#ddd;color:#222;}
-.slx-table{width:100%;border-collapse:collapse;border:1px solid var(--slx-border);border-radius:10px;overflow:hidden;}
-.slx-table th{background:var(--slx-cyan);color:#fff;text-align:left;padding:10px;font-size:.85rem;}
-.slx-table td{padding:8px 10px;border-top:1px solid var(--slx-border);font-size:.9rem;vertical-align:middle;}
-.table-wrap{overflow:auto;border-radius:10px;}
-.actions-cell{display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:nowrap;}
-.slx-mini{font-size:.85rem;border-radius:6px;padding:6px 10px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;}
-.small{font-size:.82rem;color:#555;}
-.pager{display:flex;justify-content:flex-end;gap:8px;margin-top:10px;}
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:5000;}
-.modal.show{display:flex;}
-.modal-card{background:#fff;border-radius:12px;min-width:340px;max-width:560px;width:96%;box-shadow:0 10px 30px rgba(0,0,0,.2);overflow:hidden;}
-.modal-head{background:var(--slx-blue);color:#fff;font-weight:700;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;}
-.modal-body{padding:14px;}
-.modal-foot{display:flex;gap:8px;justify-content:flex-end;padding:12px;border-top:1px solid #eee;}
-.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-.form-grid .full{grid-column:1/-1;}
-.alert{margin-top:10px;padding:8px 10px;border-radius:8px;border:1px solid #e5e7eb;font-size:.85rem;display:none;}
-.alert.ok{display:block;background:#ecfdf5;border-color:#10b981;color:#065f46;}
-.alert.err{display:block;background:#fef2f2;border-color:#ef4444;color:#7f1d1d;}
-
-.slx-mini--edit {
-  background: #eef5ff;
-  color: #2d7bd8;
-  border: 1px solid #c4d7ff;
+/* === TARJETA STARADMIN === */
+.slx-card{
+    background:#fff;
+    border-radius:12px;
+    box-shadow:0 2px 6px rgba(0,0,0,.05);
+    padding:24px;
 }
 
-.slx-mini--del {
-  background: #fff0f0;
-  color: #d83a3a;
-  border: 1px solid #f1cccc;
+/* === HEADER === */
+.slx-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:14px;
+    margin-bottom:18px;
 }
 
-.slx-searchbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 300%; /* Aumenta el ancho del contenedor */
+/* === BUSCADOR === */
+.slx-search{
+    width:360px;
+}
+.slx-search input{
+    width:100%;
+    border:1px solid #d9d9d9;
+    border-radius:8px;
+    padding:8px 12px;
+    font-size:.95rem;
 }
 
-.slx-searchbar input {
-  flex: 1; /* Hace que el buscador ocupe todo el espacio disponible */
-  padding: 10px 12px; /* Aumenta el espacio interno */
-  font-size: 1rem; /* Aumenta el tamaño del texto */
-  border: 1px solid var(--slx-border);
-  border-radius: 8px;
+/* === BOTONES === */
+.btn-purple{
+    background:#2b18ff!important;
+    color:#fff!important;
+    border-radius:10px!important;
+    font-weight:600!important;
+}
+.btn-gray{
+    background:#eef2f6!important;
+    color:#333!important;
+    border-radius:10px!important;
+}
+.btn-red{
+    background:#ffe3e3!important;
+    color:#c62828!important;
+    border-radius:10px!important;
 }
 
-.slx-pagination {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 6px;
-  margin-top: 16px;
-  flex-wrap: wrap;
+/* === TABLA === */
+.table thead th{
+    background:#f3f4f6!important;
+    border-bottom:1px solid #e0e0e0!important;
+    font-weight:600!important;
+}
+.table-hover tbody tr:hover{
+    background:#f5f7fb!important;
+}
+.table td{
+    vertical-align:middle!important;
+    padding:14px 10px!important;
+    font-size:.90rem;
 }
 
-.slx-page-btn {
-  border: 1px solid var(--slx-border);
-  background: #fff;
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-size: 0.85rem;
-  cursor: pointer;
-  color: #333;
+/* === BOTONES DE ACCIÓN === */
+.action{
+    padding:6px 10px;
+    border-radius:8px;
+    font-size:.85rem;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
 }
-
-.slx-page-btn:hover {
-  background: #e9f6f8;
-  color: #009bb3;
+.action-edit{
+    background:#eceaff;
+    color:#2b18ff;
 }
-
-.slx-page-btn.active {
-  background: #009bb3;
-  color: #fff;
-  border-color: #009bb3;
-}
-
-.slx-page-info {
-  font-size: 0.85rem;
-  color: #666;
-  margin-right: auto;
-  padding-left: 2px;
+.action-del{
+    background:#ffecec;
+    color:#d83a3a;
 }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="slx-card">
-  <div class="slx-title">🧱 Catálogo Técnico</div>
 
-  
+    <div class="slx-header">
+        <h4 style="margin:0;font-weight:700;color:#2a2f36;">Catálogo Técnico</h4>
 
-  <div class="slx-actions">
-    <form id="form-buscar" class="small" method="get" style="display:flex;gap:8px;flex:1;">
-      <div class="slx-searchbar">
-        <input type="search" id="buscarParametro" value="{{ query }}" class="slx-input" placeholder="🔍 Buscar por código, examen o parámetro...">
-      </div>
-    </form>
-    <button id="btn-nuevo" class="slx-btn">➕ Nuevo parámetro</button>
-    <button id="btn-importar" class="slx-btn cyan">⬆️ Importar Excel/CSV</button>
-    <!-- ✅ NUEVO BOTÓN EXPORTAR -->
-    <a href="{% url 'catalogo_tecnico_export' %}" class="slx-btn gray">⬇️ Exportar Excel</a>
-  </div>
+        <div class="d-flex align-items-center" style="gap:10px;">
+            <div class="slx-search">
+                <input type="search" id="buscarParametro" value="{{ query }}" placeholder="Buscar por examen o parámetro…">
+            </div>
 
-  <div class="table-wrap">
-    <table class="slx-table" id="tabla">
-      <thead>
-        <tr>
-          <th style="width:10%">Código</th>
-          <th style="width:20%">Examen</th>
-          <th style="width:20%">Parámetro</th>
-          <th style="width:10%">Unidad</th>
-          <th style="width:15%">Referencia</th>
-          <th style="width:15%">Método</th>
-          <th style="width:10%">Observación</th>
-          <th style="width:5%">Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% if page_obj and page_obj.object_list %}
-          {% for p in page_obj.object_list %}
-          <tr data-id="{{ p.id }}" data-acreditado="{{ p.acreditado|yesno:'true,false' }}">
-            <td class="small">{{ p.examen.codigo }}</td>
-            <td class="small">{{ p.examen.nombre }}</td>
-            <td>{{ p.nombre }}</td>
-            <td>{{ p.unidad }}</td>
-            <td>{{ p.referencia }}</td>
-            <td>{{ p.metodo }}</td>
-            <td>{{ p.observacion }}</td>
-            <td class="actions-cell">
-              <!-- ✅ ICONOS ACTUALIZADOS -->
-              <button class="slx-mini slx-mini--edit btn-editar" title="Editar">✏️</button>
-              <button class="slx-mini slx-mini--del btn-eliminar" title="Eliminar">🗑️</button>
-            </td>
-          </tr>
-          {% endfor %}
-        {% else %}
-          <tr><td colspan="8" class="small">No hay parámetros para mostrar.</td></tr>
-        {% endif %}
-      </tbody>
-    </table>
-  </div>
-
-  {% if page_obj %}
-  <div class="pager">
-    {% if page_obj.has_previous %}
-      <a class="slx-btn gray" href="?q={{ query|urlencode }}&page={{ page_obj.previous_page_number }}">← Anterior</a>
-    {% endif %}
-    <div class="small" style="padding:8px 0;">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</div>
-    {% if page_obj.has_next %}
-      <a class="slx-btn gray" href="?q={{ query|urlencode }}&page={{ page_obj.next_page_number }}">Siguiente →</a>
-    {% endif %}
-  </div>
-  {% endif %}
-
-  {% if parametros.has_other_pages %}
-  <div class="slx-pagination">
-    <div class="slx-page-info">
-      Página {{ parametros.number }} de {{ parametros.paginator.num_pages }}
-    </div>
-    {% if parametros.has_previous %}
-      <a href="?page={{ parametros.previous_page_number }}{% if query %}&q={{ query }}{% endif %}" class="slx-page-btn">← Anterior</a>
-    {% endif %}
-    {% for i in parametros.paginator.page_range %}
-      {% if i == parametros.number %}
-        <span class="slx-page-btn active">{{ i }}</span>
-      {% elif i >= parametros.number|add:-2 and i <= parametros.number|add:2 %}
-        <a href="?page={{ i }}{% if query %}&q={{ query }}{% endif %}" class="slx-page-btn">{{ i }}</a>
-      {% endif %}
-    {% endfor %}
-    {% if parametros.has_next %}
-      <a href="?page={{ parametros.next_page_number }}{% if query %}&q={{ query }}{% endif %}" class="slx-page-btn">Siguiente →</a>
-    {% endif %}
-  </div>
-  {% endif %}
-</div>
-
-<!-- MODAL NUEVO -->
-<div id="modal" class="modal" aria-hidden="true">
-  <div class="modal-card">
-    <div class="modal-head">
-      <div>➕ Nuevo parámetro</div>
-      <button type="button" id="m-cerrar" class="slx-btn gray">✖</button>
-    </div>
-    <div class="modal-body">
-      <form id="form-nuevo">
-        {% csrf_token %}
-        <div class="form-grid">
-          <div class="full">
-            <label class="small">Examen (código o nombre)</label>
-            <input type="text" class="slx-input" name="examen_busqueda" placeholder="Ej. E0002 o GLUCOSA">
-          </div>
-          <div>
-            <label class="small">Parámetro *</label>
-            <input type="text" class="slx-input" name="nombre" required>
-          </div>
-          <div>
-            <label class="small">Unidad</label>
-            <input type="text" class="slx-input" name="unidad">
-          </div>
-          <div>
-            <label class="small">Referencia</label>
-            <input type="text" class="slx-input" name="referencia" placeholder="Ej. 70-100">
-          </div>
-          <div class="full">
-            <label class="small">Método</label>
-            <input type="text" class="slx-input" name="metodo" placeholder="Ej. Enzimático colorimétrico">
-          </div>
-          <div class="full">
-            <label class="small">Observación</label>
-            <input type="text" class="slx-input" name="observacion">
-          </div>
-          <!-- ✅ RESTAURADO EN LA BURBUJA, NO EN LA TABLA -->
-          <div class="full">
-            <label class="small" style="display:flex;align-items:center;gap:8px;">
-              <input type="checkbox" name="acreditado" style="width:auto;height:auto;"> Acreditado
-            </label>
-          </div>
+            <button id="btn-nuevo" class="btn btn-purple btn-sm">➕ Nuevo</button>
+            <button id="btn-importar" class="btn btn-gray btn-sm">⬆️ Importar</button>
+            <a href="{% url 'catalogo_tecnico_export' %}" class="btn btn-gray btn-sm">⬇️ Exportar</a>
         </div>
-      </form>
     </div>
-    <div class="modal-foot">
-      <button type="button" id="m-cancelar" class="slx-btn gray">Cancelar</button>
-      <button type="button" id="m-guardar" class="slx-btn">Guardar</button>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Código</th>
+                    <th>Examen</th>
+                    <th>Parámetro</th>
+                    <th>Unidad</th>
+                    <th>Referencia</th>
+                    <th>Método</th>
+                    <th>Obs.</th>
+                    <th class="text-center">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for p in page_obj %}
+                <tr data-id="{{ p.id }}" data-acreditado="{{ p.acreditado|yesno:'true,false' }}">
+                    <td>{{ p.examen.codigo }}</td>
+                    <td>{{ p.examen.nombre }}</td>
+                    <td>{{ p.nombre }}</td>
+                    <td>{{ p.unidad }}</td>
+                    <td>{{ p.referencia }}</td>
+                    <td>{{ p.metodo }}</td>
+                    <td>{{ p.observacion }}</td>
+                    <td class="text-center">
+                        <button class="action action-edit btn-edit">✏️</button>
+                        <button class="action action-del btn-del">🗑️</button>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="8" class="text-center text-muted py-3">No hay parámetros registrados</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- PAGINACIÓN -->
+    {% if page_obj.has_other_pages %}
+    <div class="d-flex justify-content-end align-items-center mt-3 gap-2">
+
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if query %}&q={{ query }}{% endif %}" class="btn btn-gray btn-sm">←</a>
+        {% endif %}
+
+        <span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if query %}&q={{ query }}{% endif %}" class="btn btn-gray btn-sm">→</a>
+        {% endif %}
+
+    </div>
+    {% endif %}
+
+</div>
+
+
+<!-- ========== MODAL NUEVO / EDITAR (CORREGIDO) ========== -->
+<div class="modal fade" id="modalParametro" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Parámetro</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <form id="formParametro">
+          {% csrf_token %}
+
+          <input type="hidden" id="editId" name="id">
+
+          <div class="row g-3">
+
+            <div class="col-12">
+              <label class="form-label">Examen</label>
+              <input type="text" class="form-control" id="examenBuscar" name="examen_busqueda">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Parámetro *</label>
+              <input type="text" class="form-control" id="parametro" name="nombre">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Unidad</label>
+              <input type="text" class="form-control" id="unidad" name="unidad">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Referencia</label>
+              <input type="text" class="form-control" id="referencia" name="referencia">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Método</label>
+              <input type="text" class="form-control" id="metodo" name="metodo">
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Observación</label>
+              <input type="text" class="form-control" id="observacion" name="observacion">
+            </div>
+
+            <div class="col-12">
+              <label class="form-label d-flex align-items-center gap-2">
+                <input type="checkbox" id="acreditado" name="acreditado">
+                Acreditado
+              </label>
+            </div>
+
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-gray" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-purple" id="guardarParametro">Guardar</button>
+      </div>
+
     </div>
   </div>
 </div>
 
-<!-- MODAL IMPORTAR -->
-<div id="modal-importar" class="modal" aria-hidden="true">
-  <div class="modal-card">
-    <div class="modal-head">
-      <div>⬆️ Importar parámetros (Excel/CSV)</div>
-      <button type="button" id="mi-cerrar" class="slx-btn gray">✖</button>
-    </div>
-    <div class="modal-body">
-      <form id="form-importar" enctype="multipart/form-data">
-        {% csrf_token %}
-        <p class="small">Formato esperado (encabezados): <strong>codigo_examen</strong>, <strong>parametro</strong>, <strong>unidad</strong>, <strong>referencia</strong>, <strong>metodo</strong>, <strong>observacion</strong>, <strong>acreditado</strong>.</p>
-        <input type="file" name="archivo" accept=".xlsx,.xls,.csv" class="slx-input" required>
-      </form>
-    </div>
-    <div class="modal-foot">
-      <button type="button" id="mi-cancelar" class="slx-btn gray">Cancelar</button>
-      <button type="button" id="mi-subir" class="slx-btn cyan">Importar</button>
+
+<!-- ========== MODAL IMPORTAR ========== -->
+<div class="modal fade" id="modalImportar" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Importar parámetros</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <form id="formImportar" enctype="multipart/form-data">
+          {% csrf_token %}
+          <input type="file" name="archivo" class="form-control" accept=".xlsx,.xls,.csv" required>
+        </form>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-gray" data-bs-dismiss="modal">Cancelar</button>
+        <button class="btn btn-purple" id="importarArchivo">Importar</button>
+      </div>
+
     </div>
   </div>
 </div>
 
+{% endblock %}
+
+
+{% block extra_js %}
 <script>
-(function(){
-  document.querySelector('#tabla tbody')?.addEventListener('click', async (e)=>{
-    const btnDel=e.target.closest('.btn-eliminar');
-    const btnEdit=e.target.closest('.btn-editar');
-    const row=e.target.closest('tr');
-    if(!row) return;
-    const id=row.dataset.id;
-
-    if(btnDel){
-      if(!confirm('¿Eliminar este parámetro?')) return;
-      const csrf=document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-      const r=await fetch("{% url 'catalogo_tecnico_delete' %}",{
-        method:'POST',headers:{'X-CSRFToken':csrf},body:new URLSearchParams({id})
-      });
-      const data=await r.json();
-      if(data.status==='ok'){ row.remove(); alert('Eliminado correctamente'); }
-      else alert(data.message||'Error al eliminar');
-      return;
-    }
-
-    if(btnEdit){
-      const nombre=row.children[2].textContent.trim();
-      const unidad=row.children[3].textContent.trim();
-      const referencia=row.children[4].textContent.trim();
-      const metodo=row.children[5].textContent.trim();
-      const observacion=row.children[6].textContent.trim();
-
-      const modal=document.getElementById('modal');
-      modal.classList.add('show');
-      modal.setAttribute('aria-hidden','false');
-
-      const f=document.getElementById('form-nuevo');
-      f.examen_busqueda.value=row.children[1].textContent.trim();
-      f.nombre.value=nombre;
-      f.unidad.value=unidad;
-      f.referencia.value=referencia;
-      f.metodo.value=metodo;
-      f.observacion.value=observacion;
-      // ✅ llenar acreditado desde data attribute (no visible en tabla)
-      if (typeof row.dataset.acreditado !== 'undefined' && f.acreditado) {
-        f.acreditado.checked = (row.dataset.acreditado === 'true');
-      } else if (f.acreditado) {
-        f.acreditado.checked = false;
-      }
-      f.dataset.editId=id;
-    }
-  });
-
-  document.getElementById('m-guardar')?.addEventListener('click', async ()=>{
-    const f=document.getElementById('form-nuevo');
-    const datos=new FormData(f);
-    const editId=f.dataset.editId;
-    const csrf=document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-
-    const url = editId ? "{% url 'catalogo_tecnico_save' %}" : "{% url 'catalogo_tecnico_create' %}";
-    if(editId) datos.append('id',editId);
-
-    // ✅ asegurar envío de acreditado aunque esté desmarcado
-    if (f.acreditado) {
-      datos.set('acreditado', f.acreditado.checked ? 'true' : 'false');
-    }
-
-    const r=await fetch(url,{method:'POST',headers:{'X-CSRFToken':csrf},body:datos});
-    const data=await r.json();
-    if(data.status==='ok'){
-      // ✅ limpiar estado de edición para que "Editar" funcione después de guardar
-      delete f.dataset.editId;
-      // cerrar modal antes de recargar
-      const modal=document.getElementById('modal');
-      modal.classList.remove('show');
-      modal.setAttribute('aria-hidden','true');
-      // recargar para ver cambios
-      location.reload();
-    }
-    else alert(data.message||'Error al guardar');
-  });
-
-  const modal = document.getElementById('modal');
-  const mClose = () => {
-    modal.classList.remove('show');
-    modal.setAttribute('aria-hidden', 'true');
-    // ✅ reset total del formulario, incluyendo acreditado y estado de edición
-    const f=document.getElementById('form-nuevo');
-    f.reset();
-    delete f.dataset.editId;
-    if (f.acreditado) f.acreditado.checked = false;
-  };
-
-  // Evento para abrir el modal al hacer clic en el botón "Nuevo parámetro"
-  document.getElementById('btn-nuevo')?.addEventListener('click', () => {
-    const f = document.getElementById('form-nuevo');
-    f.reset();
-    delete f.dataset.editId;
-    if (f.acreditado) f.acreditado.checked = false;
-    modal.classList.add('show');
-    modal.setAttribute('aria-hidden', 'false');
-  });
-
-  // Eventos para cerrar el modal
-  document.getElementById('m-cerrar')?.addEventListener('click', mClose);
-  document.getElementById('m-cancelar')?.addEventListener('click', mClose);
-  modal?.addEventListener('click', (e) => {
-    if (e.target === modal) mClose();
-  });
-
-  const mi=document.getElementById('modal-importar');
-  const miClose=()=>{mi.classList.remove('show');mi.setAttribute('aria-hidden','true');};
-  document.getElementById('btn-importar')?.addEventListener('click',()=>{mi.classList.add('show');mi.setAttribute('aria-hidden','false');});
-  document.getElementById('mi-cerrar')?.addEventListener('click',miClose);
-  document.getElementById('mi-cancelar')?.addEventListener('click',miClose);
-  mi?.addEventListener('click',(e)=>{if(e.target===mi)miClose();});
-
-  document.getElementById('mi-subir')?.addEventListener('click', async ()=>{
-    const f=document.getElementById('form-importar');
-    const datos=new FormData(f);
-    const csrf=document.querySelector('[name=csrfmiddlewaretoken]')?.value;
-    const r=await fetch("{% url 'catalogo_tecnico_import' %}",{method:'POST',headers:{'X-CSRFToken':csrf},body:datos});
-    const data=await r.json();
-    if(data.status==='ok'){ miClose(); alert('Importación completada'); location.reload(); }
-    else alert(data.message||'Error al importar');
-  });
-})();
-
 $(function(){
-  // 🔹 Búsqueda global con debounce (redirige con ?q=)
-  let timer;
-  $('#buscarParametro').on('keyup', function(){
-    clearTimeout(timer);
-    const q = $(this).val();
-    timer = setTimeout(() => {
-      const url = new URL(window.location.href);
-      if(q) url.searchParams.set('q', q); else url.searchParams.delete('q');
-      url.searchParams.delete('page');
-      window.location.href = url.toString();
-    }, 400);
-  });
+
+    const modalParametro = new bootstrap.Modal(document.getElementById('modalParametro'));
+    const modalImportar  = new bootstrap.Modal(document.getElementById('modalImportar'));
+
+    /* ---------------- BUSCADOR ---------------- */
+    let timer;
+    $('#buscarParametro').on('keyup', function(){
+        clearTimeout(timer);
+        const q = $(this).val();
+        timer = setTimeout(() => {
+            const url = new URL(window.location.href);
+            if(q) url.searchParams.set('q', q);
+            else url.searchParams.delete('q');
+            url.searchParams.delete('page');
+            window.location.href = url.toString();
+        },400);
+    });
+
+    /* ---------------- NUEVO ---------------- */
+    $('#btn-nuevo').on('click', function(){
+        $('#formParametro')[0].reset();
+        $('#editId').val('');
+        modalParametro.show();
+    });
+
+    /* ---------------- EDITAR ---------------- */
+    $('.btn-edit').on('click', function(){
+        const tr = $(this).closest('tr');
+
+        $('#editId').val(tr.data('id'));
+        $('#examenBuscar').val(tr.find('td:eq(1)').text().trim());
+        $('#parametro').val(tr.find('td:eq(2)').text().trim());
+        $('#unidad').val(tr.find('td:eq(3)').text().trim());
+        $('#referencia').val(tr.find('td:eq(4)').text().trim());
+        $('#metodo').val(tr.find('td:eq(5)').text().trim());
+        $('#observacion').val(tr.find('td:eq(6)').text().trim());
+        $('#acreditado').prop('checked', tr.data('acreditado') === 'true');
+
+        modalParametro.show();
+    });
+
+    /* ---------------- GUARDAR ---------------- */
+    $('#guardarParametro').on('click', function(){
+
+        const datos = new FormData(document.getElementById('formParametro'));
+        const id = $('#editId').val();
+
+        if(id) datos.append('id', id);
+
+        $.ajax({
+            method:'POST',
+            url: id ? "{% url 'catalogo_tecnico_save' %}" : "{% url 'catalogo_tecnico_create' %}",
+            data:datos,
+            processData:false,
+            contentType:false,
+            headers:{
+                "X-CSRFToken": $('input[name="csrfmiddlewaretoken"]').val()
+            },
+            success:function(resp){
+                if(resp.status==='ok'){
+                    modalParametro.hide();
+                    location.reload();
+                } else {
+                    alert(resp.message || "Error al guardar");
+                }
+            }
+        });
+    });
+
+    /* ---------------- ELIMINAR ---------------- */
+    $('.btn-del').on('click', function(){
+        if(!confirm("¿Eliminar este parámetro?")) return;
+
+        const tr = $(this).closest('tr');
+        const id = tr.data('id');
+
+        $.post("{% url 'catalogo_tecnico_delete' %}", {
+            csrfmiddlewaretoken:'{{ csrf_token }}',
+            id:id
+        }, function(resp){
+            if(resp.status==='ok'){
+                tr.remove();
+            }
+        });
+    });
+
+    /* ---------------- IMPORTAR ---------------- */
+    $('#btn-importar').on('click', ()=> modalImportar.show());
+
+    $('#importarArchivo').on('click', function(){
+        const datos = new FormData(document.getElementById('formImportar'));
+
+        $.ajax({
+            method:'POST',
+            url:"{% url 'catalogo_tecnico_import' %}",
+            data:datos,
+            processData:false,
+            contentType:false,
+            success:function(resp){
+                if(resp.status==='ok'){
+                    modalImportar.hide();
+                    location.reload();
+                }
+            }
+        });
+    });
+
 });
 </script>
 {% endblock %}

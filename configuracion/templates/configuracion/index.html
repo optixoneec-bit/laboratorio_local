@@ -1,0 +1,109 @@
+{% extends "base_star.html" %}
+{% block title %}Configuración del Sistema{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h3 class="page-title"> Configuración </h3>
+    <nav aria-label="breadcrumb"></nav>
+</div>
+
+<div class="row">
+
+    <!-- PARÁMETROS GENERALES -->
+    <div class="col-md-4 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="mdi mdi-cog-outline" style="font-size:45px; color:#2d7bd8;"></i>
+                <h4 class="mt-2">Parámetros Generales</h4>
+                <p class="text-muted">Nombre, RUC, contactos, IVA, logo</p>
+                <a href="{% url 'configuracion:generales' %}" class="btn btn-primary btn-sm">Ingresar</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRECIOS -->
+    <div class="col-md-4 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="mdi mdi-cash-multiple" style="font-size:45px; color:#29a7a4;"></i>
+                <h4 class="mt-2">Precios</h4>
+                <p class="text-muted">Markup, reglas, impuestos</p>
+                <a href="/configuracion/precios/" class="btn btn-primary btn-sm">Ingresar</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- PARÁMETROS Y UNIDADES -->
+    <div class="col-md-4 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="mdi mdi-flask-outline" style="font-size:45px; color:#4b4bf7;"></i>
+                <h4 class="mt-2">Parámetros y Unidades</h4>
+                <p class="text-muted">Parámetros, unidades y rangos</p>
+                <a href="/configuracion/parametros/" class="btn btn-primary btn-sm">Ingresar</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- EQUIPOS -->
+    <div class="col-md-4 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="mdi mdi-lan" style="font-size:45px; color:#199eaf;"></i>
+                <h4 class="mt-2">Integración de Equipos</h4>
+                <p class="text-muted">ASTM, HL7, CSV/TXT, mapeo</p>
+                <a href="/configuracion/equipos/" class="btn btn-primary btn-sm">Ingresar</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- MONITOR HL7 (ESCUCHA) -->
+    <div class="col-md-4 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="mdi mdi-access-point-network" style="font-size:45px; color:#008cff;"></i>
+                <h4 class="mt-2">Monitor HL7</h4>
+                <p class="text-muted">Escucha, recepción y monitoreo de tramas</p>
+                <a href="{% url 'configuracion:hl7_dashboard' %}" class="btn btn-primary btn-sm">Ingresar</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ROLES -->
+    <div class="col-md-4 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="mdi mdi-account-key-outline" style="font-size:45px; color:#e85a5e;"></i>
+                <h4 class="mt-2">Roles y Permisos</h4>
+                <p class="text-muted">Permisos, accesos y seguridad</p>
+                <a href="{% url 'configuracion:roles_dashboard' %}" class="btn btn-primary btn-sm">Ingresar</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- INFORMES -->
+    <div class="col-md-4 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="mdi mdi-file-document-edit-outline" style="font-size:45px; color:#6b48ff;"></i>
+                <h4 class="mt-2">Plantillas de Informes</h4>
+                <p class="text-muted">Encabezado, pie, colores</p>
+                <a href="/configuracion/informes/" class="btn btn-primary btn-sm">Ingresar</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- BACKUP -->
+    <div class="col-md-4 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body text-center">
+                <i class="mdi mdi-database-export-outline" style="font-size:45px; color:#8e98a7;"></i>
+                <h4 class="mt-2">Backup</h4>
+                <p class="text-muted">Respaldos, exportar/importar</p>
+                <a href="/configuracion/backup/" class="btn btn-primary btn-sm">Ingresar</a>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

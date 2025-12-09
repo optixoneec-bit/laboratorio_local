@@ -14,6 +14,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'laboratorio',
+    'configuracion',
+
 ]
 
 MIDDLEWARE = [
@@ -51,6 +53,11 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+# Redirecciones después de login / logout
+LOGIN_REDIRECT_URL = '/ordenes/'
+LOGOUT_REDIRECT_URL = '/accounts/login/'
+
 
 STATIC_URL = '/static/'
 MEDIA_URL = '/media/'

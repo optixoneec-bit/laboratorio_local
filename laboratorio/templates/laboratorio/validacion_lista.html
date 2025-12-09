@@ -3,16 +3,21 @@
 
 {% block extra_head %}
 <style>
-/* 🎨 Paleta VitalityAI (Rediseño Front-End) */
+/* 🎨 Paleta de la Captura (Limpia y Moderna) */
 :root{
-  --va-blue-deep: #1A237E; 
-  --va-purple: #880E4F; 
-  --va-cyan: #00BCD4; 
-  --va-border: #E5E7EB; 
+  /* Colores principales y de acción */
+  --va-primary: #880E4F; /* Púrpura, color de acción principal (Revisar) */
+  --va-cyan: #00BCD4; /* Cian, para el encabezado del modal */
+  --va-border: #E5E7EB; /* Gris claro para bordes */
   --va-bg: #FFFFFF; 
-  --va-gray-text: #424242; 
-  --va-green-ok: #28a745; 
-  --va-red-err: #dc3545; 
+  --va-gray-text: #424242; /* Texto general */
+  --va-green-ok: #28a745; /* Verde para éxito */
+  --va-red-err: #dc3545; /* Rojo para error */
+
+  /* Colores de Badges y Tabla */
+  --va-table-header-bg: #F8F9FA; 
+  --va-badge-bg-default: #EFF6FF; /* Fondo de badge azul claro (tu original) */
+  --va-badge-text-default: #1A237E; /* Texto de badge azul oscuro (tu original) */
 }
 
 /* --- Rediseño de la Tarjeta Principal (slx-card) --- */
@@ -21,31 +26,30 @@
   border:1px solid var(--va-border);
   border-radius:12px;
   padding:20px;
-  box-shadow:0 8px 20px rgba(0,0,0,.08); 
+  box-shadow:0 0 20px rgba(0,0,0,.05); /* Sombra más suave */
 }
 
-/* Rediseño del Título (slx-title) */
+/* Rediseño del Título Principal */
 .slx-title{
-  background:var(--va-blue-deep);
-  color:#fff;
-  font-weight:700;
-  padding:12px 18px;
-  border-radius:10px;
-  margin-bottom:20px;
-  text-transform:uppercase;
-  display:flex;align-items:center;gap:10px;
-  font-size:1.2rem;
+  color:var(--va-gray-text); /* Título oscuro y elegante */
+  font-weight:600;
+  padding-bottom:15px; 
+  margin-bottom:25px;
+  font-size:1.6rem; /* Título principal más grande */
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-/* --- TABLA: Estilo Limpio y Corrección de Filas --- */
+/* --- TABLA: Estilo Limpio y Ajustado a Star Admin --- */
 .table{width:100%;border-collapse:collapse}
 
 .table th{
-  background:#f9fafb;
+  background:var(--va-table-header-bg); /* Fondo gris muy claro */
   text-align:left;
-  padding:12px 12px;
+  padding:14px 15px;
   border-bottom:2px solid var(--va-border);
-  font-size:.9rem;
+  font-size:.85rem;
   color:#6B7280;
   font-weight: 600;
   text-transform: uppercase;
@@ -53,10 +57,9 @@
 }
 
 .table td{
-  padding:15px 12px;
+  padding:16px 15px; /* Más padding para espacio */
   border-bottom:1px solid #F3F4F6;
   font-size:.92rem;
-  /* ⭐ SOLUCIÓN CLÁSICA: Centrado Vertical ⭐ */
   vertical-align: middle; 
 }
 
@@ -64,41 +67,41 @@
     background-color: #F9FAFB;
 }
 
-/* ⭐ SOLUCIÓN FINAL: Alineación de contenido dentro de la celda de acción ⭐ */
+/* ⭐ Alineación de contenido dentro de la celda de acción (Tu original: Centrado) ⭐ */
 .table td.actions {
-  text-align: center; /* Centrado horizontal del contenido de la celda */
-  display: table-cell; /* Asegurar que no haya herencia de flexbox */
-  /* padding: 15px 12px; se mantiene el padding general del td */
+  text-align: center; 
+  display: table-cell; 
+  white-space: nowrap; 
 }
 
-/* El botón se alinea horizontal y verticalmente con el centrado del TD */
-.actions .btn{
-  display: inline-block; 
-  margin: 0 auto; /* Ayuda a que text-align: center funcione */
-  white-space: nowrap; /* Evita que el botón salte de línea */
-}
 
 /* --- TEXTOS Y BADGES --- */
 .badge{
   display:inline-block;
-  padding:3px 10px;
-  border-radius:12px;
-  font-size:.75rem;
-  font-weight: 600;
-  border:1px solid #E5E7EB;
-  background:#EFF6FF; 
-  color:var(--va-blue-deep);
+  padding:4px 8px;
+  border-radius:4px; /* Bordes menos redondeados */
+  font-size:.7rem;
+  font-weight: 700;
+  background:var(--va-badge-bg-default); 
+  color:var(--va-badge-text-default);
+  text-transform: uppercase;
+  line-height: 1;
 }
 
 .small{color:var(--va-gray-text);font-size:1rem;font-weight:600;} 
 .meta{color:#9CA3AF;font-size:.85rem;margin-top:3px;} 
 
-/* --- BOTONES Y ALERTAS --- */
+/* --- BOTONES DE ACCIÓN (Según tu código original) --- */
 .btn{border:0;border-radius:8px;padding:9px 14px;font-weight:600;cursor:pointer;transition:background .2s, transform .1s}
 .btn:hover{transform:translateY(-1px);box-shadow:0 3px 6px rgba(0,0,0,.1);}
 
-/* Botón principal de Revisar (Púrpura Vibrante) */
-.btn.blue{background:var(--va-purple);color:#fff}
+/* Botón principal de Revisar (Ahora con el púrpura de la captura, y más pequeño) */
+.btn.blue{
+    background:var(--va-primary);
+    color:#fff;
+    padding: 8px 14px; /* Un poco más pequeño para la tabla */
+    font-size: 0.85rem;
+}
 .btn.blue:hover{background: #A03370;}
 
 /* Botones genéricos (Modal) */
@@ -158,10 +161,10 @@
     <table class="table">
       <thead>
         <tr>
-          <th>Orden</th>
-          <th>Paciente</th>
+          <th style="width:15%;">Orden</th>
+          <th style="width:25%;">Paciente</th>
           <th>Exámenes</th>
-          <th style="width:160px;">ACCIÓN</th> 
+          <th style="width:150px;">ACCIÓN</th> 
         </tr>
       </thead>
       <tbody>
@@ -208,6 +211,7 @@
 </div>
 
 <script>
+// El script de funcionalidad JS/AJAX se mantiene sin cambios
 document.addEventListener('DOMContentLoaded',()=>{
   const alerta = document.getElementById('alerta'); 
   const mAlert = document.getElementById('m-alert'); 

@@ -1,44 +1,165 @@
-{% extends "base.html" %}
+{% extends "base_star.html" %}
 {% block title %}Detalle de Orden {{ orden.numero_orden }}{% endblock %}
 
 {% block content %}
-<div class="card shadow-sm p-4 bg-white">
-  <h4 class="mb-3">🧾 Detalle de la Orden</h4>
-  <div class="mb-2"><strong>Paciente:</strong> {{ orden.paciente.nombre_completo }}</div>
-  <div class="mb-2"><strong>Documento:</strong> {{ orden.paciente.documento_identidad }}</div>
-  <div class="mb-3">
-    <strong>Estado:</strong>
-    <span class="badge bg-info text-dark">{{ orden.estado }}</span>
+
+<!-- ============================ -->
+<!--   ENCABEZADO DE LA ORDEN    -->
+<!-- ============================ -->
+<div class="card shadow-sm bg-white p-4 mb-4" style="border-radius:16px; font-size:0.875rem;">
+
+  <h4 class="mb-4" style="font-size:1.1rem; font-weight:600;">
+    🧾 Detalle de la Orden
+  </h4>
+
+  <div class="row g-3">
+
+    <!-- COLUMNA IZQUIERDA -->
+    <div class="col-md-6">
+
+      <div><strong>Paciente:</strong> {{ orden.paciente.nombre_completo }}</div>
+      <div><strong>Documento:</strong> {{ orden.paciente.documento_identidad }}</div>
+
+      <div><strong>Edad:</strong> {% if edad %}{{ edad }} años{% else %}—{% endif %}</div>
+
+      <div><strong>Teléfono:</strong> {{ orden.paciente.telefono|default:"—" }}</div>
+      <div><strong>Email:</strong> {{ orden.paciente.email|default:"—" }}</div>
+      <div><strong>Dirección:</strong> {{ orden.paciente.direccion|default:"—" }}</div>
+
+    </div>
+
+    <!-- COLUMNA DERECHA -->
+    <div class="col-md-6">
+
+      <div><strong>N° Orden:</strong> {{ orden.numero_orden }}</div>
+      <div><strong>Fecha:</strong> {{ orden.fecha|date:"d/m/Y H:i" }}</div>
+      <div><strong>Tipo:</strong> {{ orden.tipo }}</div>
+
+      <div>
+        <strong>Estado:</strong>
+        {% if orden.estado == "Validado" %}
+          <span style="color:#28a745; font-weight:700;">●</span> Validado
+        {% elif orden.estado == "En proceso" %}
+          <span style="color:#0d6efd; font-weight:700;">●</span> En proceso
+        {% elif orden.estado == "Pendiente" %}
+          <span style="color:#6c757d; font-weight:700;">●</span> Pendiente
+        {% else %}
+          {{ orden.estado }}
+        {% endif %}
+      </div>
+
+    </div>
+
   </div>
 
-  <hr>
+  {% if orden.observaciones %}
+  <div class="alert alert-light mt-3 py-2 border" style="border-color:rgba(0,0,0,.08)!important;">
+    <strong>Observaciones:</strong> {{ orden.observaciones }}
+  </div>
+  {% endif %}
 
-  <table class="table table-sm table-striped align-middle mb-4">
-    <thead>
+</div>
+
+
+
+<!-- ============================ -->
+<!--      TABLA DE RESULTADOS     -->
+<!-- ============================ -->
+<div class="card shadow-sm bg-white p-4 mb-4" style="border-radius:16px; font-size:0.875rem;">
+
+  <h5 class="text-primary fw-bold mb-3" style="font-size:1rem;">Resultados</h5>
+
+  <table class="table table-sm align-middle slx-table">
+    <thead style="background:#f8f9fa;">
       <tr>
         <th>Examen</th>
-        <th>Estado</th>
-        <th class="text-end">Precio</th>
+        <th>Parámetro</th>
+        <th>Resultado</th>
+        <th>Unidad</th>
+        <th>Referencia</th>
+        <th class="text-end">Validado</th>
       </tr>
     </thead>
+
     <tbody>
       {% for ex in examenes %}
-      <tr>
-        <td>{{ ex.examen.nombre }}</td>
-        <td>{{ ex.estado }}</td>
-        <td class="text-end">${{ ex.precio|floatformat:2 }}</td>
-      </tr>
+        {% for r in ex.resultados.all %}
+        <tr>
+          <td>{{ ex.examen.nombre }}</td>
+          <td>{{ r.parametro }}</td>
+          <td>{{ r.valor }}</td>
+          <td>{{ r.unidad }}</td>
+          <td>{{ r.referencia }}</td>
+
+          <td class="text-end">
+            {% if r.validado %}
+              <span style="color:#28a745; font-weight:700;">✔</span>
+            {% else %}
+              <span style="color:#6c757d;">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
       {% empty %}
       <tr>
-        <td colspan="3" class="text-center text-muted py-3">Sin exámenes registrados</td>
+        <td colspan="6" class="text-center text-muted py-3">
+          Sin resultados registrados
+        </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
 
-  <div class="d-flex justify-content-between">
-    <a href="{% url 'lista_ordenes' %}" class="btn btn-secondary">← Volver</a>
-    <a href="{% url 'resultados_orden' orden.id %}" class="btn btn-primary">Ver Resultados</a>
+  <!-- BOTONES -->
+  <div class="d-flex justify-content-between align-items-center mt-4">
+    <a href="{% url 'lista_ordenes' %}" class="btn btn-outline-secondary btn-sm px-4">
+      ← Volver
+    </a>
+
+    <div class="d-flex gap-2">
+      <a href="{% url 'resultados_orden' orden.id %}" class="btn btn-primary btn-sm px-4">
+        Ver Resultados
+      </a>
+
+      <button class="btn btn-success btn-sm px-4" data-bs-toggle="modal" data-bs-target="#modalEstadoOrden">
+        📄 Informe PDF
+      </button>
+    </div>
+  </div>
+
+</div>
+
+
+
+<!-- ============================ -->
+<!--          MODAL PDF          -->
+<!-- ============================ -->
+<div class="modal fade" id="modalEstadoOrden" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow-sm" style="border-radius:14px; font-size:0.875rem;">
+
+      <div class="modal-header bg-primary text-white" style="border-radius:14px 14px 0 0;">
+        <h5 class="modal-title">Confirmar impresión</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <p>El estado actual es <strong>{{ orden.estado }}</strong>.</p>
+        <p>¿Quieres imprimir el informe?</p>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm px-4" data-bs-dismiss="modal">
+          Cancelar
+        </button>
+
+        <a href="{% url 'imprimir_informe' orden.id %}" target="_blank" class="btn btn-success btn-sm px-4">
+          Imprimir
+        </a>
+      </div>
+
+    </div>
   </div>
 </div>
+
 {% endblock %}

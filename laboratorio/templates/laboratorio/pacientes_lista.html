@@ -1,0 +1,256 @@
+{% extends "base_star.html" %}
+{% load static %}
+{% block title %}Pacientes{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* --- ESTILOS DE LA TARJETA Y LA TABLA --- */
+  .slx-card{background:#fff;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,.05);padding:22px 24px;}
+  
+  /* Asegurar que todas las filas del cuerpo de la tabla tengan fondo uniforme (blanco) */
+  .table tbody tr {
+    background-color: #fff !important; 
+  }
+  
+  .table th,.table td{vertical-align:middle;}
+  .btn-sm{padding:3px 10px;}
+  
+  /* Mantener el hover sin rayas */
+  .table-hover tbody tr:hover {
+    background-color: #f1f1f1 !important; 
+  }
+  
+  /* ===== ESTILOS DEL MODAL (Asegurando compatibilidad con tu diseño) ===== */
+  .slx-modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:5000;}
+  .slx-modal.show{display:flex;}
+  .slx-modal__card{background:#fff;border-radius:12px;min-width:320px;max-width:520px;width:92%;box-shadow:0 10px 30px rgba(0,0,0,.2);overflow:hidden;}
+  .slx-modal__head{background:#2d7bd8;color:#fff;font-weight:700;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;}
+  .slx-modal__body{padding:14px;}
+  .slx-modal__foot{display:flex;gap:8px;justify-content:flex-end;padding:12px;border-top:1px solid #eaeaea;}
+  
+  /* Botones del Modal */
+  .slx-btn{border:0;border-radius:8px;padding:8px 12px;font-weight:600;cursor:pointer;}
+  .slx-btn--sec{background:#eef2f7;}
+  .slx-btn--pri{background:#2d7bd8;color:#fff;}
+  
+  /* Formularios del Modal */
+  .slx-label{font-size:.9rem;margin-bottom:4px;display:block;}
+  .slx-input{width:100%;border:1px solid #dfe3ea;border-radius:8px;padding:8px;font-size:.9rem; margin-bottom: 10px;}
+  .slx-input:focus{outline:none;border-color:#2d7bd8;box-shadow:0 0 0 3px rgba(45,123,216,.15);}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="slx-card mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Pacientes registrados</h4>
+    <div class="d-flex gap-2">
+      <form method="get" class="d-flex" style="max-width:320px;">
+        <input type="text" name="q" value="{{ request.GET.q }}" class="form-control form-control-sm me-2" placeholder="Buscar por nombre o cédula">
+        <button type="submit" class="btn btn-sm btn-outline-primary">Buscar</button>
+      </form>
+      <button type="button" class="btn btn-sm btn-primary" onclick="openModalPaciente()">
+        <i class="mdi mdi-account-plus-outline"></i> Nuevo
+      </button>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle"> 
+      <thead class="table-light">
+        <tr>
+          <th>#</th><th>Cédula</th><th>Nombre completo</th><th>Sexo</th>
+          <th>Fecha nacimiento</th><th>Teléfono</th><th>Email</th><th>Dirección</th>
+          <th style="width:160px;">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in pacientes %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td>{{ p.documento_identidad }}</td>
+          <td>{{ p.nombre_completo }}</td>
+          <td>{{ p.sexo }}</td>
+          <td>{{ p.fecha_nacimiento|date:"Y-m-d" }}</td>
+          <td>{{ p.telefono|default:"-" }}</td>
+          <td>{{ p.email|default:"-" }}</td>
+          <td>{{ p.direccion|default:"-" }}</td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-primary" onclick="editarPaciente({{ p.id }})">
+              <i class="mdi mdi-pencil"></i> Editar
+            </button>
+            <form action="{% url 'paciente_eliminar' p.id %}" method="post" style="display:inline;" onsubmit="return confirm('¿Eliminar este paciente?');">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-outline-danger">
+                <i class="mdi mdi-delete-outline"></i> Eliminar
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="9" class="text-center text-muted py-3">No hay pacientes registrados</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="modalPaciente" class="slx-modal" aria-hidden="true" role="dialog">
+  <div class="slx-modal__card">
+    <div class="slx-modal__head">
+      <span id="titulo-burbuja">Nuevo Paciente</span>
+      <button type="button" class="slx-btn slx-btn--sec" onclick="closeModalPaciente()">✖</button>
+    </div>
+    <div class="slx-modal__body">
+      <form id="formPaciente">
+        {% csrf_token %}
+        <label class="slx-label">Cédula <span class="text-danger">*</span></label>
+        <input type="text" name="documento_identidad" class="slx-input" placeholder="Cédula" required>
+
+        <label class="slx-label">Nombres <span class="text-danger">*</span></label>
+        <input type="text" name="nombres" class="slx-input" placeholder="Nombres" required>
+
+        <label class="slx-label">Apellidos</label>
+        <input type="text" name="apellidos" class="slx-input" placeholder="Apellidos">
+
+        <label class="slx-label">Sexo</label>
+        <select name="sexo" class="slx-input">
+          <option value="">—</option>
+          <option value="M">Masculino</option>
+          <option value="F">Femenino</option>
+        </select>
+
+        <label class="slx-label">Fecha de nacimiento</label>
+        <input type="date" name="fecha_nacimiento" class="slx-input">
+
+        <label class="slx-label">Teléfono</label>
+        <input type="text" name="telefono" class="slx-input" placeholder="Teléfono">
+
+        <label class="slx-label">Email</label>
+        <input type="email" name="email" class="slx-input" placeholder="correo@dominio.com">
+
+        <label class="slx-label">Dirección</label>
+        <input type="text" name="direccion" class="slx-input" placeholder="Dirección">
+      </form>
+    </div>
+    <div class="slx-modal__foot">
+      <button type="button" class="slx-btn slx-btn--sec" onclick="closeModalPaciente()">Cancelar</button>
+      <button type="button" class="slx-btn slx-btn--pri" id="btnGuardarPaciente">Guardar</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function getCookie(name){const v=`; ${document.cookie}`;const p=v.split(`; ${name}=`);if(p.length===2)return p.pop().split(';').shift();}
+const csrftoken=getCookie('csrftoken');
+
+let currentPacienteId = null; // Variable global para almacenar el ID en modo edición
+
+function openModalPaciente(data=null, id=null){
+  const modal = document.getElementById('modalPaciente');
+  const titulo = document.getElementById('titulo-burbuja');
+  const form = document.getElementById('formPaciente');
+  
+  // 1. Limpiar el formulario y la variable de ID
+  form.reset();
+  currentPacienteId = null; 
+
+  if (data) {
+    titulo.textContent = 'Editar Paciente';
+    currentPacienteId = id; 
+    
+    // Separar nombre_completo
+    const nombreCompleto = data.nombre_completo || '';
+    const partes = nombreCompleto.trim().split(/\s+/);
+    const nombres = partes.shift() || '';
+    const apellidos = partes.join(' ') || '';
+
+    form.documento_identidad.value = data.documento_identidad || '';
+    form.nombres.value = nombres;
+    form.apellidos.value = apellidos;
+    form.sexo.value = data.sexo || '';
+    // Corregir formato y manejar NULL/vacío para el input type="date"
+    form.fecha_nacimiento.value = data.fecha_nacimiento ? data.fecha_nacimiento.substring(0, 10) : ''; 
+    form.telefono.value = data.telefono || '';
+    form.email.value = data.email || '';
+    form.direccion.value = data.direccion || '';
+  } else {
+    titulo.textContent = 'Nuevo Paciente';
+  }
+  modal.classList.add('show');
+}
+function closeModalPaciente(){document.getElementById('modalPaciente').classList.remove('show');}
+
+
+// 💡 FUNCIÓN CLAVE: Prepara el FormData y elimina el campo de fecha si está vacío.
+function prepareFormData(form) {
+    const fd = new FormData(form);
+    
+    // 1. Reconstruir nombre completo
+    fd.set('nombre_completo',`${fd.get('nombres')||''} ${fd.get('apellidos')||''}`.trim());
+
+    // 2. SOLUCIÓN AL ERROR DE FECHA: Si la fecha está vacía, la eliminamos del FormData.
+    const fechaNacimiento = fd.get('fecha_nacimiento');
+    if (!fechaNacimiento || fechaNacimiento.trim() === '') {
+        fd.delete('fecha_nacimiento'); // Esto permite a Django usar NULL si es necesario
+    }
+    
+    return fd;
+}
+
+async function guardarPaciente(){
+  const form=document.getElementById('formPaciente');
+  const fd = prepareFormData(form); // Usar la nueva función de preparación
+  
+  const r=await fetch('/paciente/nuevo/',{method:'POST',headers:{'X-CSRFToken':csrftoken},body:fd});
+  const data=await r.json();
+  if(data.status==='ok'){closeModalPaciente();location.reload();}
+  else alert(data.message||'Error al crear el paciente');
+}
+
+async function editarPaciente(id){
+  const r=await fetch(`/paciente/${id}/editar_ajax/`);
+  const data=await r.json();
+  if(data.status==='ok') openModalPaciente(data.paciente, id);
+  else alert(data.message||'Error al obtener datos');
+}
+
+async function guardarCambiosPaciente(id){
+  const form=document.getElementById('formPaciente');
+  const fd = prepareFormData(form); // Usar la nueva función de preparación
+
+  const r=await fetch(`/paciente/${id}/actualizar_ajax/`,{method:'POST',headers:{'X-CSRFToken':csrftoken},body:fd});
+  const data=await r.json();
+  if(data.status==='ok'){closeModalPaciente();location.reload();}
+  else alert(data.message||'Error al guardar cambios');
+}
+
+// 🚀 FUNCIÓN CONTROLADORA ÚNICA PARA EL BOTÓN GUARDAR
+function handleGuardarClick() {
+    // Validar campos requeridos antes de enviar (cédula y nombres)
+    const form = document.getElementById('formPaciente');
+    if (!form.documento_identidad.value || !form.nombres.value) {
+        alert("Por favor, complete los campos de Cédula y Nombres.");
+        return;
+    }
+    
+    if (currentPacienteId) {
+        // Modo Edición
+        guardarCambiosPaciente(currentPacienteId);
+    } else {
+        // Modo Nuevo
+        guardarPaciente();
+    }
+}
+
+// 💡 ASIGNAR EL LISTENER AL BOTÓN AL CARGAR LA PÁGINA
+document.addEventListener('DOMContentLoaded', () => {
+    const btnGuardar = document.getElementById('btnGuardarPaciente');
+    if (btnGuardar) {
+        btnGuardar.addEventListener('click', handleGuardarClick);
+    }
+});
+</script>
+{% endblock %}

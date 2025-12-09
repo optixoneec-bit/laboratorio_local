@@ -1,0 +1,62 @@
+{% extends "base_star.html" %}
+{% load static %}
+{% block title %}Editar roles de usuario{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-8 col-md-10 mx-auto">
+    <div class="d-flex align-items-center mb-3">
+      <a href="{% url 'configuracion:roles_dashboard' %}" class="btn btn-light btn-sm me-2">
+        ← Volver
+      </a>
+      <div>
+        <h4 class="mb-0">Usuario: {{ usuario.username }}</h4>
+        <small class="text-muted">
+          {{ usuario.get_full_name|default:"Sin nombre registrado" }}
+          {% if usuario.email %} · {{ usuario.email }}{% endif %}
+        </small>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <form method="post" novalidate>
+          {% csrf_token %}
+
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <div class="form-check mt-2">
+                {{ form.is_active }}
+                <label class="form-check-label">Usuario activo</label>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="form-check mt-2">
+                {{ form.is_staff }}
+                <label class="form-check-label">Miembro del staff</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Roles (grupos)</label>
+            <div class="border rounded p-2" style="max-height: 260px; overflow:auto;">
+              {{ form.groups }}
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-between">
+            <a href="{% url 'configuracion:roles_dashboard' %}" class="btn btn-light">
+              Volver
+            </a>
+            <button type="submit" class="btn btn-primary">
+              Guardar cambios
+            </button>
+          </div>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

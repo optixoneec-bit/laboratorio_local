@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Informe de Resultados - {{ orden.numero_orden }}</title>
+    <style>
+        /* ==================== ESTILOS GLOBALES Y DE PÁGINA ==================== */
+        @page { 
+            size: letter; 
+            margin: 25mm 25mm 20mm 25mm;
+            @bottom-left {
+                content: "Página " counter(page) " de " counter(pages);
+                font-size: 7pt;
+                font-family: 'Helvetica', Arial, sans-serif; 
+            }
+        }
+        body { 
+            font-family: 'Helvetica', Arial, sans-serif; 
+            font-size: 8pt; 
+            color: #333;
+            line-height: 1.2;
+        }
+        
+        /* ==================== ENCABEZADO ==================== */
+        .page-header { 
+            position: absolute; 
+            top: -20mm; 
+            left: 0; 
+            width: 100%; 
+        }
+
+        .patient-block { 
+            border-bottom: 0.5px solid black; 
+            padding-bottom: 5px; 
+            margin-top: 40px;
+            margin-bottom: 15px; 
+            font-size: 8pt; 
+        }
+        .patient-block span { 
+            font-weight: bold; 
+            margin-right: 5px; 
+            white-space: nowrap;
+        }
+        .data-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+        }
+        .data-table td { 
+            padding: 1px 5px;
+            vertical-align: top;
+        }
+        .paciente-nombre { 
+            font-size: 9pt;
+            font-weight: bold; 
+        }
+
+        /* ==================== TABLA DE RESULTADOS ==================== */
+        .results-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            font-size: 8pt; 
+            margin-top: 10px;
+        }
+        .results-table th, .results-table td { 
+            padding: 3px;
+            vertical-align: top; 
+            padding-left: 0; 
+        }
+        
+        .table-header th { 
+            border-bottom: 1px solid black; 
+            font-weight: bold; 
+            padding-top: 6px; 
+            padding-bottom: 6px;
+        }
+
+        .examen-col      { width: 45%; text-align: left; }
+        .resultado-col   { width: 15%; text-align: right; }
+        .unidades-col    { width: 15%; text-align: center; }
+        .referencia-col  { width: 25%; text-align: center; }
+
+        .group-title { 
+            text-align: center; 
+            font-weight: bold; 
+            font-size: 9pt; 
+            padding-top: 8px; 
+            padding-bottom: 4px;
+            border-top: 0.5px solid black; 
+            page-break-after: avoid; 
+        }
+
+        .examen-title { 
+            font-weight: bold; 
+            font-size: 8pt; 
+            padding-top: 6px;
+            padding-bottom: 2px;
+            text-transform: uppercase;
+            page-break-after: avoid;
+        }
+
+        .parametro-row td { 
+            border-bottom: 0.25px solid #eee;
+            padding-top: 2px; 
+            padding-bottom: 2px;
+        }
+        .parametro-row td:first-child { 
+            padding-left: 10px;
+        }
+
+        .resultado-valor { 
+            font-weight: bold; 
+            text-align: right; 
+        }
+        .unidades   { text-align: center; }
+        .referencia { text-align: center; }
+
+        .abnormal { color: red; }
+
+        /* ==================== PIE DE PÁGINA Y VALIDACIÓN ==================== */
+        .page-footer { 
+            position: absolute; 
+            bottom: -10mm; 
+            left: 0; 
+            width: 100%; 
+        }
+        .footer-text { 
+            font-size: 7pt; 
+            margin-top: 10px; 
+        }
+        .validator-info {
+            font-size: 8pt;
+            margin-top: 30px;
+            border-top: 0.5px solid black;
+            padding-top: 5px;
+            width: 100%;
+        }
+        .validator-info table {
+            width: 100%;
+        }
+        .validator-info td {
+            font-size: 7.5pt;
+        }
+        .validator-info .label {
+            font-weight: bold;
+            width: 15%;
+        }
+        .validator-info .value {
+            width: 35%;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- ==================== ENCABEZADO ==================== -->
+    <div class="page-header">
+        <div style="margin-bottom: 10px; overflow: auto;">
+
+            <!-- LOGO GRANDE (100px) -->
+            <img src="{{ logo_path }}" style="height: 100px; float: left; margin-right: 40px;">
+
+            <!-- SUBTÍTULO -->
+            <p style="float: right; font-weight: bold; font-size: 7pt; margin-top: 35px;">
+                LABORATORIO CLÍNICO ACREDITADO
+            </p>
+        </div>
+
+        <div style="clear: both; margin-top: 10px; border-bottom: 0.5px solid black;"></div>
+    </div>
+
+    <!-- ==================== DATOS DEL PACIENTE ==================== -->
+    <div class="patient-block">
+        <table class="data-table">
+            <tr>
+                <td><span>Paciente:</span></td>
+                <td class="paciente-nombre">{{ paciente.nombre_completo|default:"N/A" }}</td>
+                <td><span>Cédula/Pass:</span></td>
+                <td>{{ paciente.documento_identidad|default:"N/A" }}</td>
+                <td><span>Historia:</span></td>
+                <td>{{ paciente.historia_clinica|default:"N/A" }}</td>
+            </tr>
+
+            <tr>
+                <td><span>Dr (a):</span></td>
+                <td>{{ orden.medico_solicitante|default:"N/A" }}</td>
+                <td><span>Orden/Análisis:</span></td>
+                <td>{{ orden.numero_orden }}</td>
+                <td><span>Sexo:</span></td>
+                <td>{{ paciente.sexo|default:"N/A" }}</td>
+            </tr>
+
+            <tr>
+                <td><span>Fecha de Ingreso:</span></td>
+                <td>{{ orden.fecha|date:"Y-m-d H:i:s" }}</td>
+                <td><span>Edad:</span></td>
+                <td>{{ edad|default:"N/A" }}</td>
+                <td><span>Fec.Nac.:</span></td>
+                <td>{{ paciente.fecha_nacimiento|date:"d/m/Y"|default:"N/A" }}</td>
+            </tr>
+
+            <tr>
+                <td><span>Referido:</span></td>
+                <td colspan="5">{{ orden.referido|default:"N/A" }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- ==================== TABLA DE RESULTADOS ==================== -->
+    <table class="results-table">
+        <thead>
+            <tr class="table-header">
+                <th class="examen-col">Examen</th>
+                <th class="resultado-col">Resultado</th>
+                <th class="unidades-col">Unidad</th>
+                <th class="referencia-col">Referencia</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for group_name, exams in grouped_data.items %}
+                <tr>
+                    <td colspan="4" class="group-title">{{ group_name }}</td>
+                </tr>
+
+                {% for examen_name, resultados_list in exams.items %}
+                    <!-- título del examen -->
+                    <tr>
+                        <td colspan="4" class="examen-title">{{ examen_name }}</td>
+                    </tr>
+
+                    {% for r in resultados_list %}
+                        <tr class="parametro-row">
+                            <td>
+                                {# Si solo hay un parámetro y se llama igual que el examen, no repetir el texto #}
+                                {% if resultados_list|length == 1 and r.parametro == examen_name %}
+                                    &nbsp;
+                                {% else %}
+                                    {{ r.parametro }}
+                                {% endif %}
+                            </td>
+                            <td class="resultado-valor {% if r.is_abnormal %}abnormal{% endif %}">
+                                {{ r.valor|default:"--" }} 
+                            </td>
+                            <td class="unidades">
+                                {{ r.unidad|default:"-" }}
+                            </td>
+                            <td class="referencia">
+                                {{ r.referencia|default:"-" }}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% endfor %}
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- ==================== PIE DE PÁGINA ==================== -->
+    <div class="page-footer">
+
+        <div class="validator-info">
+            <table>
+                <tr>
+                    <td class="label">VALIDADO POR:</td>
+                    <td class="value">{{ validador.nombre }}</td>
+
+                    <td class="label">FECHA DE VALIDACIÓN:</td>
+                    <td class="value">
+                        {% if validador.fecha %}
+                            {{ validador.fecha|date:"Y-m-d H:i:s" }}
+                        {% else %}
+                            PENDIENTE
+                        {% endif %}
+                    </td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="footer-text">
+            <p>Se considera el punto (.) como separador decimal para todos los exámenes</p>
+            <p>La fecha de nacimiento es acorde a la información entregada por el paciente o el laboratorio remitente</p>
+        </div>
+    </div>
+
+</body>
+</html>

@@ -1,0 +1,89 @@
+{% extends "base_star.html" %}
+{% block title %}Integración de Equipos{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h3 class="page-title"> Integración de Equipos </h3>
+</div>
+
+<div class="row">
+    <div class="col-12 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <a href="{% url 'configuracion:dashboard' %}" class="btn btn-light btn-sm">
+                            <i class="mdi mdi-arrow-left"></i> Volver
+                        </a>
+                    </div>
+                    <div>
+                        <a href="{% url 'configuracion:equipo_nuevo' %}" class="btn btn-primary btn-sm">
+                            <i class="mdi mdi-plus"></i> Nuevo equipo
+                        </a>
+                    </div>
+                </div>
+
+                <h4 class="card-title mb-3">Equipos configurados</h4>
+
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Código</th>
+                                <th>Tipo integración</th>
+                                <th>Host / Puerto</th>
+                                <th>Ruta archivos</th>
+                                <th>Activo</th>
+                                <th class="text-end">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for e in equipos %}
+                            <tr>
+                                <td>{{ e.nombre }}</td>
+                                <td>{{ e.codigo }}</td>
+                                <td>{{ e.get_tipo_integracion_display }}</td>
+                                <td>
+                                    {% if e.host or e.puerto %}
+                                        {{ e.host|default:"-" }}{% if e.puerto %}:{{ e.puerto }}{% endif %}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>{{ e.ruta_archivos|default:"-" }}</td>
+                                <td>
+                                    {% if e.activo %}
+                                        <span class="badge badge-success">Sí</span>
+                                    {% else %}
+                                        <span class="badge badge-danger">No</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <a href="{% url 'configuracion:equipo_editar' e.id %}" class="btn btn-outline-primary btn-sm">
+                                        <i class="mdi mdi-pencil"></i>
+                                    </a>
+                                    <a href="{% url 'configuracion:equipo_mapeo_lista' e.id %}" class="btn btn-outline-secondary btn-sm">
+                                        <i class="mdi mdi-format-list-bulleted-square"></i> Mapeos
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">
+                                    No hay equipos configurados aún.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

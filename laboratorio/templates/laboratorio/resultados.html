@@ -1,196 +1,422 @@
 {% extends "base_star.html" %}
-{% block title %}Cargar Resultados — {{ orden.numero_orden }}{% endblock %}
+{% load static %}
+{% block title %}Carga de Resultados — {{ orden.numero_orden }}{% endblock %}
 
 {% block extra_head %}
 <style>
-:root{
-  --slx-blue:#2d7bd8;
-  --slx-cyan:#29a7a4;
-  --slx-border:#e3e6ea;
-  --slx-bg:#fff;
-  --slx-gray:#8e98a7;
-  --slx-red:#e85a5e;
-  --slx-green:#2fa36a;
-}
-.slx-card{background:var(--slx-bg);border:1px solid var(--slx-border);border-radius:12px;padding:18px 20px;box-shadow:0 2px 6px rgba(0,0,0,.04);}
-.slx-title{background:var(--slx-blue);color:#fff;font-weight:700;padding:10px 14px;border-radius:8px;margin-bottom:14px;text-transform:uppercase;display:flex;align-items:center;gap:8px;}
-.slx-btn{background:var(--slx-blue);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-weight:600;cursor:pointer;transition:background .2s ease;}
-.slx-btn:hover{background:#1f66c2;}
-.slx-btn.green{background:var(--slx-green);}
-.slx-btn.green:hover{background:#248e5a;}
-.slx-btn.gray{background:#ddd;color:#333;}
-.slx-area{margin-top:22px;border:1px solid var(--slx-border);border-radius:10px;overflow:hidden;}
-.slx-area-header{background:var(--slx-cyan);color:#fff;font-weight:700;padding:8px 12px;text-transform:uppercase;font-size:.9rem;}
-.slx-table{width:100%;border-collapse:collapse;}
-.slx-table th{background:#f9fafb;text-align:left;padding:8px;border-bottom:1px solid var(--slx-border);font-size:.85rem;color:#444;}
-.slx-table td{padding:8px;border-bottom:1px solid var (--slx-border);font-size:.9rem;vertical-align:middle;}
-.slx-input{width:100%;border:1px solid var(--slx-border);border-radius:6px;padding:6px 8px;font-size:.85rem;}
-.text-muted{color:var(--slx-gray);}
-.alert-success{background:#d1fae5;border:1px solid #34d399;color:#065f46;padding:6px 10px;border-radius:6px;margin-top:10px;font-size:.85rem;}
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:5000;}
-.modal.show{display:flex;}
-.modal-card{background:#fff;border-radius:12px;min-width:360px;max-width:720px;width:96%;box-shadow:0 10px 30px rgba(0,0,0,.2);overflow:hidden;}
-.modal-head{background:var(--slx-blue);color:#fff;font-weight:700;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;}
-.modal-body{padding:14px;}
-.modal-foot{display:flex;gap:8px;justify-content:flex-end;padding:12px;border-top:1px solid #eee;}
-.param-grid{display:grid;grid-template-columns:1.3fr 0.9fr 0.8fr 1fr 1fr;gap:8px;align-items:center;margin-bottom:8px;}
-.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.75rem;border:1px solid #e5e7eb;background:#f8fafc;color:#374151;}
-.hidden{display:none;}
-.table-mini{width:100%;border-collapse:collapse;}
-.table-mini th,.table-mini td{border-bottom:1px solid #e5e7eb;padding:6px 8px;font-size:.86rem;text-align:left;}
-.table-mini th{background:#f9fafb;}
-.fila-vacia{cursor:pointer;}
-.fila-vacia:hover{background:#f7fbff;}
-.param-row{cursor:pointer;}
-.param-row:hover{background:#f7fbff;}
-.btn-save{display:none;} /* sin verificación por examen */
+  /* =========================================
+     1. ESTILOS GENERALES (Match con tu diseño)
+     ========================================== */
+  body { background: #f6f7fb !important; }
+
+  .slx-card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,.05);
+      padding: 24px;
+      border: none;
+      margin-top: 20px;
+  }
+
+  /* Títulos y textos */
+  h4 { font-weight: 500; color: #333; margin: 0; }
+  .text-label { font-size: 12px; color: #6c757d; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  
+  /* Botones estilo "Clean" */
+  .btn-sm {
+      padding: 5px 14px;
+      font-size: 14px;
+      border-radius: 6px;
+      font-weight: 500;
+      display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn-primary { background-color: #4f6bdc; border-color: #4f6bdc; }
+  .btn-primary:hover { background-color: #3d54c7; border-color: #3d54c7; }
+
+  /* =========================================
+     2. TARJETA DEL PACIENTE (Header Visual)
+     ========================================== */
+  .patient-header {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+  }
+  .patient-avatar {
+      width: 42px; height: 42px;
+      background: rgba(79, 107, 220, 0.1);
+      color: #4f6bdc;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; margin-right: 15px;
+  }
+  .patient-name { font-size: 16px; font-weight: 600; color: #212529; margin-bottom: 2px; }
+  .patient-meta { font-size: 13px; color: #6c757d; display: flex; align-items: center; gap: 10px; }
+
+  /* =========================================
+     3. TABLA PRINCIPAL (Estilo "Lista")
+     ========================================== */
+  .area-badge {
+      display: inline-block;
+      background: #eef2ff; color: #4f6bdc;
+      padding: 6px 12px; border-radius: 6px;
+      font-weight: 600; font-size: 13px;
+      margin-top: 24px; margin-bottom: 12px;
+  }
+
+  .table-responsive {
+      border: 1px solid #e9ecef;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 10px;
+  }
+  .table { margin-bottom: 0; }
+  
+  .table th {
+      background: #f8f9fa;
+      color: #495057;
+      font-weight: 600;
+      font-size: 13px;
+      text-transform: uppercase;
+      border-bottom: 1px solid #e9ecef;
+      padding: 12px 16px;
+  }
+  .table td {
+      vertical-align: middle !important;
+      padding: 8px 16px;
+      border-bottom: 1px solid #f1f3f5;
+      color: #333;
+      font-size: 14px;
+      height: 45px; /* Altura mínima para que se vea ordenado */
+  }
+  .table tbody tr { background: #fff; }
+  .table tbody tr:hover { background: #f1f5f9 !important; }
+
+  /* --- INPUTS FANTASMA (Solo en la tabla principal) --- */
+  /* Esto hace que parezca texto normal hasta que pasas el mouse */
+  table .slx-input {
+      width: 100%;
+      background: transparent;
+      border: 1px solid transparent; 
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 14px;
+      color: #212529;
+      transition: all 0.2s;
+  }
+  table .slx-input:hover, table .slx-input:focus {
+      background: #fff;
+      border-color: #ced4da;
+      outline: none;
+      box-shadow: 0 0 0 2px rgba(79, 107, 220, 0.1);
+  }
+  table .slx-input.campo-valor { font-weight: 600; color: #000; }
+
+  /* =========================================
+     4. MODALES (Esencial para que no se rompa JS)
+     ========================================== */
+  .modal {
+      position: fixed !important;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 9999 !important;
+      display: none; /* JS usa display: flex al añadir .show */
+      align-items: center; justify-content: center;
+  }
+  .modal.show { display: flex !important; }
+
+  .modal-card {
+      background: #fff;
+      width: 95%; max-width: 750px;
+      border-radius: 10px;
+      box-shadow: 0 15px 30px rgba(0,0,0,0.2);
+      display: flex; flex-direction: column;
+      max-height: 90vh;
+  }
+  
+  .modal-head {
+      padding: 16px 24px;
+      border-bottom: 1px solid #eee;
+      background: #fff;
+      border-radius: 10px 10px 0 0;
+      display: flex; justify-content: space-between; align-items: center;
+  }
+  .modal-title { font-size: 18px; font-weight: 600; color: #333; }
+
+  .modal-body { padding: 24px; overflow-y: auto; }
+
+  .modal-foot {
+      padding: 16px 24px;
+      border-top: 1px solid #eee;
+      background: #f8f9fa;
+      border-radius: 0 0 10px 10px;
+      display: flex; justify-content: flex-end; gap: 10px;
+  }
+
+  /* --- INPUTS DEL MODAL (Estilo Visible) --- */
+  /* IMPORTANTE: Dentro del modal, los inputs deben tener borde siempre */
+  .modal .slx-input, .modal textarea {
+      display: block; width: 100%;
+      padding: 8px 10px;
+      font-size: 14px;
+      border: 1px solid #ced4da;
+      border-radius: 4px;
+      background-color: #fff;
+  }
+  .modal .slx-input:focus {
+      border-color: #4f6bdc; outline: none;
+      box-shadow: 0 0 0 3px rgba(79, 107, 220, 0.15);
+  }
+
+  /* --- GRID PARA JS (CRÍTICO) --- */
+  /* El JS busca esta clase para inyectar el HTML de parámetros */
+  .param-grid {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr; /* Columnas ajustadas */
+      gap: 12px;
+      margin-bottom: 10px;
+      align-items: center;
+      font-size: 14px;
+  }
+  /* Encabezado del grid dentro del modal */
+  .param-grid.fw-semibold {
+      background: #f1f3f5;
+      padding: 8px 0;
+      border-radius: 4px;
+      text-align: center;
+      font-weight: 600;
+      color: #495057;
+      font-size: 12px;
+      margin-bottom: 15px;
+      border: 1px solid #e9ecef;
+  }
+  /* Alineación texto izquierda para la primera columna (Parámetro) */
+  .param-grid > div:nth-child(5n+1) { padding-left: 10px; text-align: left; }
+
+  /* =========================================
+     5. OTROS (Alertas y Utilidades)
+     ========================================== */
+  .alert-success {
+      position: fixed; bottom: 25px; right: 25px; z-index: 10000;
+      background: #10b981; color: #fff; border: none;
+      padding: 12px 20px; border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+      display: none; font-weight: 500;
+  }
+  .hidden { display: none; }
+  .cursor-pointer { cursor: pointer; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="slx-card">
-  <div class="slx-title"><span class="icon">🧪</span> CARGA DE RESULTADOS — {{ orden.numero_orden }}</div>
 
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-    <a href="{% url 'resultados_lista' %}" class="slx-btn gray">← Volver</a>
-    <button class="slx-btn green" id="btnGuardarTodo">💾 Guardar cambios</button>
+<div class="slx-card">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="mb-1">Carga de Resultados</h4>
+        <div class="text-muted small">Orden #{{ orden.numero_orden }}</div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a href="{% url 'resultados_lista' %}" class="btn btn-sm btn-outline-secondary">
+        <i class="mdi mdi-arrow-left"></i> Volver
+      </a>
+      <button id="btnGuardarTodo" class="btn btn-sm btn-primary">
+        <i class="mdi mdi-content-save-outline"></i> Guardar cambios
+      </button>
+    </div>
   </div>
 
-  <p style="margin:0 0 14px;color:#555;font-size:.9rem;">
-    Paciente: <strong>{{ orden.paciente.nombre_completo }}</strong> &nbsp; | &nbsp;
-    Documento: <strong>{{ orden.paciente.documento_identidad }}</strong> &nbsp; | &nbsp;
-    Fecha: <strong>{{ orden.fecha|date:"d/m/Y H:i" }}</strong>
-  </p>
+  <div class="patient-header">
+      <div class="d-flex align-items-center">
+          <div class="patient-avatar">
+             <i class="mdi mdi-account"></i>
+          </div>
+          <div>
+              <div class="patient-name">{{ orden.paciente.nombre_completo }}</div>
+              <div class="patient-meta">
+                  <span><i class="mdi mdi-card-account-details-outline me-1"></i> {{ orden.paciente.documento_identidad }}</span>
+                  <span class="mx-2">|</span>
+                  <span><i class="mdi mdi-calendar-clock me-1"></i> {{ orden.fecha|date:"d/m/Y H:i" }}</span>
+              </div>
+          </div>
+      </div>
+      
+      <span class="badge bg-white text-dark border px-3 py-2">{{ orden.estado }}</span>
+  </div>
 
   <form class="hidden">{% csrf_token %}</form>
 
   {% regroup examenes by examen.area as examenes_por_area %}
   {% for area in examenes_por_area %}
-    <div class="slx-area">
-      <div class="slx-area-header">{{ area.grouper }}</div>
-      <table class="slx-table">
+    
+    <div class="area-badge">{{ area.grouper }}</div>
+
+    <div class="table-responsive">
+      <table class="slx-table table table-hover">
         <thead>
           <tr>
-            <th style="width:25%">Parámetro</th>
-            <th style="width:12%">Resultado</th>
-            <th style="width:10%">Unidad</th>
-            <th style="width:18%">Referencia</th>
-            <th style="width:20%">Método</th>
-            <th style="width:15%">Observaciones</th>
-            <th style="width:5%">✔</th>
+            <th style="width: 25%;">Parámetro</th>
+            <th style="width: 15%;">Resultado</th>
+            <th style="width: 10%;">Unidad</th>
+            <th style="width: 15%;">Referencia</th>
+            <th style="width: 15%;">Método</th>
+            <th style="width: 15%;">Obs.</th>
+            <th style="width: 5%; text-align: center;">Ok</th>
           </tr>
         </thead>
+
         <tbody>
         {% for ex in area.list %}
           {% if ex.resultados.exists %}
             {% for r in ex.resultados.all %}
-              <tr class="param-row" data-id="{{ r.id }}" data-ordenex="{{ ex.id }}" data-param="{{ r.parametro|escapejs }}">
-                <td>{{ r.parametro }}</td>
-                <td><input type="text" class="slx-input campo-valor" value="{{ r.valor|default_if_none:'' }}"></td>
-                <td><input type="text" class="slx-input campo-unidad" value="{{ r.unidad|default_if_none:'' }}"></td>
-                <td><input type="text" class="slx-input campo-ref" value="{{ r.referencia|default_if_none:'' }}"></td>
-                <td><input type="text" class="slx-input campo-metodo" value="{{ r.metodo|default_if_none:'' }}"></td>
-                <td><input type="text" class="slx-input campo-obs" value="{{ r.observacion|default_if_none:'' }}"></td>
-                <td style="text-align:center;"><span class="campo-verificado">{{ r.verificado|yesno:"Sí,No" }}</span></td>
-              </tr>
+            
+            <tr class="param-row" data-id="{{ r.id }}" data-ordenex="{{ ex.id }}" data-param="{{ r.parametro|escapejs }}">
+              
+              <td class="fw-semibold text-secondary">{{ r.parametro }}</td>
+              
+              <td><input class="slx-input campo-valor" value="{{ r.valor }}" placeholder="-"></td>
+              <td><input class="slx-input campo-unidad" value="{{ r.unidad }}"></td>
+              <td><input class="slx-input campo-ref" value="{{ r.referencia }}"></td>
+              <td><input class="slx-input campo-metodo" value="{{ r.metodo }}"></td>
+              <td><input class="slx-input campo-obs" value="{{ r.observacion }}"></td>
+              
+              <td class="text-center">
+                 <span class="campo-verificado badge {% if r.verificado %}bg-success bg-opacity-10 text-success{% else %}bg-light text-muted{% endif %}">
+                    {{ r.verificado|yesno:"Si,No" }}
+                 </span>
+              </td>
+
+            </tr>
             {% endfor %}
+
           {% else %}
-              <tr data-ordenex="{{ ex.id }}" class="fila-vacia">
-                <td colspan="7" class="text-muted">
-                  🔹 Sin parámetros cargados para <strong>{{ ex.examen.nombre }}</strong>
-                  <span class="badge">{{ ex.examen.codigo }}</span>
-                  <script type="application/json" class="payload-parametros">
-                    [
-                      {% for ep in ex.examen.parametros.all %}
-                        {
-                          "nombre": "{{ ep.nombre|escapejs }}",
-                          "unidad": "{{ ep.unidad|default_if_none:''|escapejs }}",
-                          "referencia": "{{ ep.referencia|default_if_none:''|escapejs }}",
-                          "metodo": "{{ ep.metodo|default_if_none:''|escapejs }}",
-                          "observacion": "{{ ep.observacion|default_if_none:''|escapejs }}",
-                          "acreditado": {{ ep.acreditado|yesno:"true,false" }}
-                        }{% if not forloop.last %},{% endif %}
-                      {% empty %}
-                        { "nombre":"", "unidad":"", "referencia":"", "metodo":"", "observacion":"", "acreditado":false }
-                      {% endfor %}
-                    ]
-                  </script>
-                </td>
-              </tr>
+            <tr class="fila-vacia" data-ordenex="{{ ex.id }}" style="cursor: pointer;">
+              <td colspan="7" class="text-center py-4 text-muted">
+                
+                <div>
+                    <i class="mdi mdi-playlist-plus fs-4 d-block mb-1"></i>
+                    Sin parámetros cargados para <strong class="text-dark">{{ ex.examen.nombre }}</strong>
+                    <span class="badge bg-light text-dark border ms-1">{{ ex.examen.codigo }}</span>
+                    <div class="small mt-1 text-primary">Clic para cargar plantilla</div>
+                </div>
+
+                <script type="application/json" class="payload-parametros">
+                [
+                  {% for ep in ex.examen.parametros.all %}
+                  {
+                    "nombre":"{{ ep.nombre|escapejs }}",
+                    "unidad":"{{ ep.unidad|default_if_none:''|escapejs }}",
+                    "referencia":"{{ ep.referencia|default_if_none:''|escapejs }}",
+                    "metodo":"{{ ep.metodo|default_if_none:''|escapejs }}",
+                    "observacion":"{{ ep.observacion|default_if_none:''|escapejs }}"
+                  }{% if not forloop.last %},{% endif %}
+                  {% endfor %}
+                ]
+                </script>
+
+              </td>
+            </tr>
           {% endif %}
         {% endfor %}
         </tbody>
       </table>
     </div>
-  {% empty %}
-    <p class="text-muted">No hay exámenes en esta orden.</p>
   {% endfor %}
 
-  <div id="alerta" class="alert-success" style="display:none;">✅ Cambios guardados correctamente.</div>
+  <div id="alerta" class="alert-success">
+      <i class="mdi mdi-check-circle-outline me-1"></i> Cambios guardados correctamente.
+  </div>
+
 </div>
+
 
 <div id="modalResultado" class="modal" aria-hidden="true">
   <div class="modal-card">
+
     <div class="modal-head">
-      <div>🧫 Parámetros</div>
-      <button type="button" id="m-cerrar" class="slx-btn gray">✖</button>
+      <div class="modal-title">🧪 Cargar Parámetros</div>
+      <button id="m-cerrar" class="btn btn-sm btn-light text-muted" style="font-size:16px;">✕</button>
     </div>
+
     <div class="modal-body">
-      <div class="small" style="margin-bottom:10px;color:#555;">
-        <div><strong>Examen:</strong> <span id="m-examen"></span></div>
-        <div><strong>Código:</strong> <span id="m-codigo"></span></div>
+      
+      <div class="d-flex gap-3 mb-4 p-3 bg-light rounded border">
+          <div><strong class="text-muted d-block small">EXAMEN</strong> <span id="m-examen" class="fw-bold text-dark"></span></div>
+          <div><strong class="text-muted d-block small">CÓDIGO</strong> <span id="m-codigo" class="fw-bold text-dark"></span></div>
       </div>
+
       <form id="form-burbuja">
-        <div class="param-grid" style="font-weight:600;">
-          <div>Parámetro</div><div>Valor</div><div>Unidad</div><div>Referencia</div><div>Método</div>
+
+        <div class="param-grid fw-semibold">
+          <div>Parámetro</div>
+          <div>Valor</div>
+          <div>Unidad</div>
+          <div>Ref.</div>
+          <div>Método</div>
         </div>
+
         <div id="m-parametros"></div>
 
-        <div style="margin-top:12px;">
-          <label style="font-weight:600;">Observaciones:</label>
-          <textarea name="observacion_general" class="slx-input" rows="2" placeholder="Observaciones generales..."></textarea>
+        <div class="mt-4">
+          <label class="text-label mb-2">Observación General</label>
+          <textarea class="slx-input" name="observacion_general" rows="2"></textarea>
         </div>
-        <div style="margin-top:10px;display:flex;align-items:center;gap:6px;">
-          <input type="checkbox" id="m-verificado" name="verificado">
-          <label for="m-verificado" style="font-size:.9rem;">Resultado verificado</label>
+
+        <div class="mt-3">
+          <label class="d-flex align-items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="m-verificado" style="width:16px; height:16px;">
+              <span class="text-dark fw-medium">Marcar resultado como verificado</span>
+          </label>
         </div>
+
       </form>
-      <div id="m-nota" class="text-muted" style="margin-top:6px;font-size:.82rem;"></div>
+
     </div>
+
     <div class="modal-foot">
-      <button type="button" id="m-cancelar" class="slx-btn gray">Cancelar</button>
-      <button type="button" id="m-guardar" class="slx-btn">Guardar</button>
+      <button id="m-cancelar" class="btn btn-sm btn-outline-secondary">Cancelar</button>
+      <button id="m-guardar" class="btn btn-sm btn-primary px-4">Guardar Datos</button>
     </div>
+
   </div>
 </div>
 
+
 <div id="modalResumen" class="modal" aria-hidden="true">
   <div class="modal-card">
+
     <div class="modal-head">
-      <div>🧾 Resumen de resultados</div>
-      <button type="button" id="mr-cerrar" class="slx-btn gray">✖</button>
+      <div class="modal-title">🧾 Confirmar Resumen</div>
+      <button id="mr-cerrar" class="btn btn-sm btn-light text-muted">✕</button>
     </div>
+
     <div class="modal-body">
-      <table class="table-mini">
-        <thead>
-          <tr>
-            <th>Parámetro</th>
-            <th>Valor</th>
-            <th>Unidad</th>
-            <th>Referencia</th>
-            <th>Método</th>
-            <th>Observaciones</th>
-            <th>Verificado</th>
-          </tr>
-        </thead>
-        <tbody id="mr-body"></tbody>
-      </table>
-      <div id="mr-msg" class="text-muted" style="margin-top:8px;font-size:.82rem;">Verifica los datos antes de enviar.</div>
+      <div class="table-responsive border-0">
+          <table class="table table-sm table-bordered">
+            <thead class="table-light">
+              <tr>
+                <th>Parámetro</th><th>Valor</th><th>Unidad</th><th>Ref.</th><th>Método</th><th>Obs</th><th>V</th>
+              </tr>
+            </thead>
+            <tbody id="mr-body"></tbody>
+          </table>
+      </div>
+      <div id="mr-msg" class="text-muted small mt-3 fst-italic text-center">
+          Por favor verifica que todos los datos sean correctos antes de procesar.
+      </div>
     </div>
+
     <div class="modal-foot">
-      <button type="button" id="mr-volver" class="slx-btn gray">Volver</button>
-      <button type="button" id="mr-enviar" class="slx-btn green" disabled>Enviar a validación</button>
+      <button id="mr-volver" class="btn btn-sm btn-outline-secondary">Volver y Editar</button>
+      <button id="mr-enviar" class="btn btn-sm btn-success px-4" disabled>Enviar a Validación</button>
     </div>
+
   </div>
 </div>
 
@@ -202,7 +428,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   const mExamen=document.getElementById('m-examen');
   const mCodigo=document.getElementById('m-codigo');
   const mParametros=document.getElementById('m-parametros');
-  const mNota=document.getElementById('m-nota');
+  const mNota=document.getElementById('m-nota'); // en esta versión no existe, no pasa nada si queda null
   const mrBody=document.getElementById('mr-body');
   const mrMsg=document.getElementById('mr-msg');
   const btnEnviar=document.getElementById('mr-enviar');
@@ -238,13 +464,13 @@ document.addEventListener('DOMContentLoaded',()=>{
       mParametros.innerHTML='';
       if(!params || !params.length || !params[0].nombre){
         mParametros.innerHTML = '<p class="text-muted">Este examen no tiene parámetros definidos en el Catálogo Técnico.</p>';
-        mNota.textContent = 'Define primero los parámetros en Catálogo Técnico para este examen.';
+        if(mNota){ mNota.textContent = 'Define primero los parámetros en Catálogo Técnico para este examen.'; }
       }else{
-        mNota.textContent = '';
+        if(mNota){ mNota.textContent = ''; }
         params.forEach((p)=>{
           const unidad = p.unidad || '—';
           const referencia = p.referencia || '—';
-          const metodo = p.metodo || '—'; // 👈 Incluye el método
+          const metodo = p.metodo || '—';
           const row=document.createElement('div');
           row.className='param-grid';
           row.innerHTML=`
@@ -253,12 +479,12 @@ document.addEventListener('DOMContentLoaded',()=>{
               <input type="hidden" name="parametro[]" value="${p.nombre}">
               <input type="hidden" name="unidad[]" value="${p.unidad||''}">
               <input type="hidden" name="referencia[]" value="${p.referencia||''}">
-              <input type="hidden" name="metodo[]" value="${p.metodo||''}"> <!-- 👈 Incluye el método -->
+              <input type="hidden" name="metodo[]" value="${p.metodo||''}">
             </div>
             <div><input type="text" class="slx-input" name="valor[]" placeholder="Valor"></div>
-            <div><span class="badge">${unidad}</span></div>
-            <div><span class="badge">${referencia}</span></div>
-            <div><span class="badge">${metodo}</span></div> <!-- 👈 Muestra el método -->
+            <div><span class="badge bg-light text-dark border">${unidad}</span></div>
+            <div><span class="badge bg-light text-dark border">${referencia}</span></div>
+            <div><span class="badge bg-light text-dark border">${metodo}</span></div>
           `;
           mParametros.appendChild(row);
         });
@@ -279,13 +505,11 @@ document.addEventListener('DOMContentLoaded',()=>{
       const valor = tr.querySelector('.campo-valor').value;
       const unidad = tr.querySelector('.campo-unidad').value;
       const ref = tr.querySelector('.campo-ref').value;
-      const metodo = tr.querySelector('.campo-metodo').value; // 👈 Extrae el método
+      const metodo = tr.querySelector('.campo-metodo').value;
       const obs = tr.querySelector('.campo-obs').value;
 
-      // Guarda el contexto de la fila seleccionada
       singleRowContext = { tr, id: tr.dataset.id, param, unidad, referencia: ref, metodo: metodo, observacion: obs, valor: valor };
 
-      // Carga los valores en el modal
       mExamen.textContent = tr.closest('table').previousElementSibling?.textContent || '';
       mCodigo.textContent = '';
       mParametros.innerHTML = `
@@ -295,12 +519,12 @@ document.addEventListener('DOMContentLoaded',()=>{
             <input type="hidden" name="parametro[]" value="${param}">
             <input type="hidden" name="unidad[]" value="${unidad || ''}">
             <input type="hidden" name="referencia[]" value="${ref || ''}">
-            <input type="hidden" name="metodo[]" value="${metodo || ''}"> <!-- 👈 Incluye el método -->
+            <input type="hidden" name="metodo[]" value="${metodo || ''}">
           </div>
           <div><input type="text" class="slx-input" name="valor[]" placeholder="Valor" value="${valor || ''}"></div>
-          <div><span class="badge">${unidad || '—'}</span></div>
-          <div><span class="badge">${ref || '—'}</span></div>
-          <div><span class="badge">${metodo || '—'}</span></div> <!-- 👈 Muestra el método -->
+          <div><span class="badge bg-light text-dark border">${unidad || '—'}</span></div>
+          <div><span class="badge bg-light text-dark border">${ref || '—'}</span></div>
+          <div><span class="badge bg-light text-dark border">${metodo || '—'}</span></div>
         </div>
       `;
       modal.querySelector('textarea[name="observacion_general"]').value = obs || '';
@@ -318,21 +542,21 @@ document.addEventListener('DOMContentLoaded',()=>{
     closeModal(modalResumen);
   });
 
-  // Guardar dentro de burbuja (no avanza automático)
+  // Guardar dentro de burbuja
   document.getElementById('m-guardar').addEventListener('click', async ()=>{
     const f=document.getElementById('form-burbuja');
     const parametros=[...f.querySelectorAll('input[name="parametro[]"]')].map(i=>i.value);
     const valores=[...f.querySelectorAll('input[name="valor[]"]')].map(i=>i.value.trim());
     const unidades=[...f.querySelectorAll('input[name="unidad[]"]')].map(i=>i.value);
     const referencias=[...f.querySelectorAll('input[name="referencia[]"]')].map(i=>i.value);
-    const metodos=[...f.querySelectorAll('input[name="metodo[]"]')].map(i=>i.value); // Obtener métodos
+    const metodos=[...f.querySelectorAll('input[name="metodo[]"]')].map(i=>i.value);
     const obsGeneral = f.querySelector('textarea[name="observacion_general"]').value || '';
+    const verificadoFlag = f.querySelector('#m-verificado').checked ? 'True' : 'False';
     const csrf=getCSRF();
     let ok=0, fail=0;
-    let saves = []; // Array para almacenar promesas de guardado
+    let saves = [];
 
     if (currentMode === 'multiple') {
-      // Múltiple: crea nuevos registros (requiere recarga para verlos)
       for (let i = 0; i < parametros.length; i++) {
         const p = parametros[i], v = valores[i];
         if (!p || !v) continue;
@@ -342,11 +566,10 @@ document.addEventListener('DOMContentLoaded',()=>{
         body.append('valor', v);
         body.append('unidad', unidades[i] || '');
         body.append('referencia', referencias[i] || '');
-        body.append('metodo', metodos[i] || ''); // 👈 Incluye el método individual
-        body.append('observacion', obsGeneral); // 👈 Incluye la observación general
-        body.append('verificado', f.querySelector('#m-verificado').checked ? 'True' : 'False'); // 👈 Incluye el estado de verificado
+        body.append('metodo', metodos[i] || '');
+        body.append('observacion', obsGeneral);
+        body.append('verificado', verificadoFlag);
 
-        // Agregamos la promesa al array 'saves'
         saves.push(fetch("{% url 'registrar_resultado' 0 %}".replace('/0/', '/' + currentOE + '/'), {
           method: 'POST',
           headers: { 'X-CSRFToken': csrf, 'X-Requested-With': 'XMLHttpRequest' },
@@ -357,7 +580,6 @@ document.addEventListener('DOMContentLoaded',()=>{
         }).catch(() => { fail++; }));
       }
     } else {
-      // Single: actualiza registro existente (actualización en DOM es local)
       const ctx=singleRowContext;
       if(ctx && ctx.id){
         const payload = {
@@ -365,23 +587,30 @@ document.addEventListener('DOMContentLoaded',()=>{
           valor: valores[0] || '',
           unidad: unidades[0] || '',
           referencia: referencias[0] || '',
-          metodo: metodos[0] || '', // 👈 Incluye el método
-          observacion: obsGeneral,  // 👈 Incluye la observación
+          metodo: metodos[0] || '',
+          observacion: obsGeneral,
         };
 
-        // Agregamos la promesa al array 'saves'
         saves.push(fetch("{% url 'guardar_resultados_ajax' %}",{
-          method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf}, body:JSON.stringify(payload)
+          method:'POST',
+          headers:{
+            'Content-Type':'application/json',
+            'X-CSRFToken':csrf,
+            'X-Requested-With':'XMLHttpRequest'
+          },
+          body:JSON.stringify(payload)
         }).then(r=>r.json()).then(data=>{
           if(data.status==='ok'){
             ok++;
-            // REFLEJAR EN DOM INMEDIATAMENTE:
             ctx.tr.querySelector('.campo-valor').value = payload.valor;
             ctx.tr.querySelector('.campo-unidad').value = payload.unidad;
             ctx.tr.querySelector('.campo-ref').value = payload.referencia;
-            ctx.tr.querySelector('.campo-metodo').value = payload.metodo;       // 👈 Actualiza el método
-            ctx.tr.querySelector('.campo-obs').value = payload.observacion;     // 👈 Actualiza la observación
-            ctx.tr.querySelector('.campo-verificado').textContent = f.querySelector('#m-verificado').checked ? 'Sí' : 'No'; // 👈 Actualiza el estado de verificado
+            ctx.tr.querySelector('.campo-metodo').value = payload.metodo;
+            ctx.tr.querySelector('.campo-obs').value = payload.observacion;
+            const badge = ctx.tr.querySelector('.campo-verificado');
+            if(badge){
+              badge.textContent = f.querySelector('#m-verificado').checked ? 'Sí' : 'No';
+            }
           } else {
             fail++;
           }
@@ -389,7 +618,6 @@ document.addEventListener('DOMContentLoaded',()=>{
       }
     }
 
-    // Esperar a que todas las peticiones terminen
     await Promise.all(saves);
 
     closeModal(modal);
@@ -397,125 +625,122 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(ok > 0) {
         showAlert('Guardado exitoso');
         if (currentMode === 'multiple') {
-            // Si creamos nuevos elementos (multiple mode), recargamos para que Django los dibuje.
             setTimeout(() => { window.location.href = "{% url 'resultados_lista' %}"; }, 600);
-
         }
     } else {
         showAlert('Nada guardado o error en el proceso', true);
     }
   });
 
-// Guardar cambios (muestra resumen con TODO)
-document.getElementById('btnGuardarTodo').addEventListener('click',()=>{
-  mrBody.innerHTML='';
-  let completos=true;
+  // Guardar cambios (muestra resumen con TODO)
+  document.getElementById('btnGuardarTodo').addEventListener('click',()=>{
+    mrBody.innerHTML='';
+    let completos=true;
 
-  // Recoger existentes de la tabla (param-rows)
-  document.querySelectorAll('.param-row[data-id]').forEach(tr=>{
-    const param = tr.dataset.param || tr.children[0].textContent.trim();
-    const valor = tr.querySelector('.campo-valor').value.trim();
-    const unidad = tr.querySelector('.campo-unidad').value.trim();
-    const ref = tr.querySelector('.campo-ref').value.trim();
-    const metodo = tr.querySelector('.campo-metodo').value.trim();
-    const obs = tr.querySelector('.campo-obs').value.trim();
+    document.querySelectorAll('.param-row[data-id]').forEach(tr=>{
+      const param = tr.dataset.param || tr.children[0].textContent.trim();
+      const valor = tr.querySelector('.campo-valor').value.trim();
+      const unidad = tr.querySelector('.campo-unidad').value.trim();
+      const ref = tr.querySelector('.campo-ref').value.trim();
+      const metodo = tr.querySelector('.campo-metodo').value.trim();
+      const obs = tr.querySelector('.campo-obs').value.trim();
 
-    // ✅ Captura real del estado verificado
-    const verifEl = tr.querySelector('.campo-verificado');
-    const verif = verifEl ? (verifEl.textContent.trim() || '—') : '—';
+      const verifEl = tr.querySelector('.campo-verificado');
+      const verif = verifEl ? (verifEl.textContent.trim() || '—') : '—';
 
-    const trR=document.createElement('tr');
-    trR.innerHTML = `
-      <td>${param}</td>
-      <td>${valor}</td>
-      <td>${unidad||'—'}</td>
-      <td>${ref||'—'}</td>
-      <td>${metodo||'—'}</td>
-      <td>${obs||''}</td>
-      <td>${verif}</td>
-    `;
-    mrBody.appendChild(trR);
-    if(!valor) completos=false;
-  });
-
-  // Si hay parámetros abiertos en la burbuja
-  if(modal.classList.contains('show')){
-    const f=document.getElementById('form-burbuja');
-    const parametros=[...f.querySelectorAll('input[name="parametro[]"]')].map(i=>i.value);
-    const valores=[...f.querySelectorAll('input[name="valor[]"]')].map(i=>i.value.trim());
-    const unidades=[...f.querySelectorAll('input[name="unidad[]"]')].map(i=>i.value);
-    const referencias=[...f.querySelectorAll('input[name="referencia[]"]')].map(i=>i.value);
-    const metodos=[...f.querySelectorAll('input[name="metodo[]"]')].map(i=>i.value);
-    const obsGeneral=f.querySelector('textarea[name="observacion_general"]').value || '';
-    const verificado=f.querySelector('#m-verificado').checked ? 'Sí' : 'No';
-
-    for(let i=0;i<parametros.length;i++){
-      if(!parametros[i]) continue;
       const trR=document.createElement('tr');
-      trR.innerHTML=`
-        <td>${parametros[i]}</td>
-        <td>${valores[i]||''}</td>
-        <td>${unidades[i]||'—'}</td>
-        <td>${referencias[i]||'—'}</td>
-        <td>${metodos[i]||'—'}</td>
-        <td>${obsGeneral}</td>
-        <td>${verificado}</td>
+      trR.innerHTML = `
+        <td>${param}</td>
+        <td>${valor}</td>
+        <td>${unidad||'—'}</td>
+        <td>${ref||'—'}</td>
+        <td>${metodo||'—'}</td>
+        <td>${obs||''}</td>
+        <td>${verif}</td>
       `;
       mrBody.appendChild(trR);
-      if(!valores[i]) completos=false;
-    }
-  }
+      if(!valor) completos=false;
+    });
 
-  btnEnviar.disabled = !completos;
-  mrMsg.textContent = completos
-    ? 'Todo completo. Puedes enviar a validación.'
-    : 'Hay parámetros sin valor. Se guardarán los completos y la orden quedará en espera.';
-  openModal(modalResumen);
-});
+    if(modal.classList.contains('show')){
+      const f=document.getElementById('form-burbuja');
+      const parametros=[...f.querySelectorAll('input[name="parametro[]"]')].map(i=>i.value);
+      const valores=[...f.querySelectorAll('input[name="valor[]"]')].map(i=>i.value.trim());
+      const unidades=[...f.querySelectorAll('input[name="unidad[]"]')].map(i=>i.value);
+      const referencias=[...f.querySelectorAll('input[name="referencia[]"]')].map(i=>i.value);
+      const metodos=[...f.querySelectorAll('input[name="metodo[]"]')].map(i=>i.value);
+      const obsGeneral=f.querySelector('textarea[name="observacion_general"]').value || '';
+      const verificado=f.querySelector('#m-verificado').checked ? 'Sí' : 'No';
+
+      for(let i=0;i<parametros.length;i++){
+        if(!parametros[i]) continue;
+        const trR=document.createElement('tr');
+        trR.innerHTML=`
+          <td>${parametros[i]}</td>
+          <td>${valores[i]||''}</td>
+          <td>${unidades[i]||'—'}</td>
+          <td>${referencias[i]||'—'}</td>
+          <td>${metodos[i]||'—'}</td>
+          <td>${obsGeneral}</td>
+          <td>${verificado}</td>
+        `;
+        mrBody.appendChild(trR);
+        if(!valores[i]) completos=false;
+      }
+    }
+
+    btnEnviar.disabled = !completos;
+    mrMsg.textContent = completos
+      ? 'Todo completo. Puedes enviar a validación.'
+      : 'Hay parámetros sin valor. Se guardarán los completos y la orden quedará en espera.';
+    openModal(modalResumen);
+  });
 
 
   let enviarValidacion = false;
 
   btnEnviar.addEventListener('click', async () => {
-  enviarValidacion = true;
-  const csrf = getCSRF();
-  let ok = 0, fail = 0;
-  const saves = [];
+    enviarValidacion = true;
+    const csrf = getCSRF();
+    let ok = 0, fail = 0;
+    const saves = [];
 
-  document.querySelectorAll('.param-row[data-id]').forEach(tr => {
-    const id = tr.dataset.id;
-    const payload = {
-      id: id,
-      valor: tr.querySelector('.campo-valor').value.trim(),
-      unidad: tr.querySelector('.campo-unidad').value.trim(),
-      referencia: tr.querySelector('.campo-ref').value.trim(),
-      metodo: tr.querySelector('.campo-metodo').value.trim(),
-      observacion: tr.querySelector('.campo-obs').value.trim(),
-      accion: "enviar_validacion" // ✅ clave correcta para views.py
-    };
+    document.querySelectorAll('.param-row[data-id]').forEach(tr => {
+      const id = tr.dataset.id;
+      const payload = {
+        id: id,
+        valor: tr.querySelector('.campo-valor').value.trim(),
+        unidad: tr.querySelector('.campo-unidad').value.trim(),
+        referencia: tr.querySelector('.campo-ref').value.trim(),
+        metodo: tr.querySelector('.campo-metodo').value.trim(),
+        observacion: tr.querySelector('.campo-obs').value.trim(),
+        accion: "enviar_validacion"
+      };
 
-    saves.push(fetch("{% url 'guardar_resultados_ajax' %}", {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-      body: JSON.stringify(payload)
-    }).then(r => r.json()).then(d => { if (d.status === 'ok' || d.status === 'redirect') ok++; else fail++; }).catch(() => { fail++; }));
+      saves.push(fetch("{% url 'guardar_resultados_ajax' %}", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf, 'X-Requested-With':'XMLHttpRequest' },
+        body: JSON.stringify(payload)
+      }).then(r => r.json()).then(d => {
+        if (d.status === 'ok' || d.status === 'redirect') ok++;
+        else fail++;
+      }).catch(() => { fail++; }));
+    });
+
+    await Promise.all(saves);
+    closeModal(modalResumen);
+
+    if (ok > 0 && enviarValidacion) {
+      showAlert('Resultados enviados a validación');
+      setTimeout(() => {
+        window.location.href = "{% url 'resultados_lista' %}";
+      }, 1000);
+    } else if (fail > 0) {
+      showAlert('No se pudo guardar', true);
+    }
   });
-
-  await Promise.all(saves);
-  closeModal(modalResumen);
-
-  if (ok > 0 && enviarValidacion) {
-    showAlert('Resultados enviados a validación');
-    setTimeout(() => {
-      window.location.href = "{% url 'resultados_lista' %}";
-    }, 1000);
-  } else if (fail > 0) {
-    showAlert('No se pudo guardar', true);
-  }
-});
-
-
 
 });
 </script>
+
 {% endblock %}

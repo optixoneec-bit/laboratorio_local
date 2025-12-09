@@ -1,0 +1,96 @@
+{% extends "base_star.html" %}
+{% load static %}
+{% block title %}Parámetros generales{% endblock %}
+
+{% block extra_head %}
+<style>
+  :root{
+    --cfg-border:#e3e6ea;
+    --cfg-bg:#ffffff;
+    --cfg-muted:#6b7280;
+  }
+  .cfg-wrapper{
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  .cfg-card{
+    background:var(--cfg-bg);
+    border:1px solid var(--cfg-border);
+    border-radius:16px;
+    padding:18px 20px;
+    box-shadow:0 2px 6px rgba(15,23,42,.06);
+  }
+  .cfg-help{
+    font-size:12px;
+    color:var(--cfg-muted);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cfg-wrapper mt-4">
+  <div class="row mb-3">
+    <div class="col">
+      <h3 class="mb-1">Parámetros generales</h3>
+      <div class="text-muted" style="font-size:13px;">
+        Actualiza los datos principales de tu laboratorio
+      </div>
+    </div>
+    <div class="col-auto">
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'configuracion:dashboard' %}">Volver</a>
+    </div>
+  </div>
+
+  <div class="cfg-card">
+    <form method="post" enctype="multipart/form-data" class="row g-3">
+      {% csrf_token %}
+
+      <div class="col-md-6">
+        <label class="form-label">Nombre del laboratorio</label>
+        {{ form.nombre_laboratorio }}
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">RUC</label>
+        {{ form.ruc }}
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Correo</label>
+        {{ form.correo }}
+      </div>
+
+      <div class="col-md-6">
+        <label class="form-label">Dirección</label>
+        {{ form.direccion }}
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Teléfono(s)</label>
+        {{ form.telefono }}
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Logo</label>
+        {{ form.logo }}
+        <div class="cfg-help">Formato sugerido: PNG/JPG, fondo transparente o blanco.</div>
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">IVA (%)</label>
+        {{ form.iva_porcentaje }}
+      </div>
+
+      <div class="col-md-3">
+        <label class="form-label">Markup por defecto (%)</label>
+        {{ form.markup_por_defecto }}
+        <div class="cfg-help">Porcentaje que se usará como referencia para los precios.</div>
+      </div>
+
+      <div class="col-12 mt-2">
+        <button class="btn btn-primary" type="submit">Guardar cambios</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

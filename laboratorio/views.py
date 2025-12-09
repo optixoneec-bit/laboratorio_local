@@ -1,29 +1,70 @@
 # laboratorio/views.py
-
+import os
+from datetime import date # Necesario para la función calculate_age
+from django.conf import settings
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import JsonResponse, HttpResponseForbidden, HttpResponse
+from django.http import JsonResponse, HttpResponseForbidden, HttpResponse, FileResponse
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from django.contrib import messages
-from django.template.loader import render_to_string
+from django.template.loader import render_to_string, get_template
 from django.contrib.auth.views import redirect_to_login
 from django.template import TemplateDoesNotExist
 from io import BytesIO
+from django.template.loader import render_to_string # NECESARIA
+from collections import defaultdict # NECESARIA
+from datetime import date
+from weasyprint import HTML, CSS # NECESARIA
+from reportlab.graphics.barcode import code128
+from django.core.files.base import ContentFile
+
+from collections import defaultdict
+
+from django.template.loader import render_to_string
+from django.http import FileResponse
+import tempfile
+# -----------------------------------------------------------
+# INFORME PDF — ESTILO SYNLAB — 100% REPORTLAB
+# -----------------------------------------------------------
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+from reportlab.lib.colors import HexColor
+from reportlab.lib.utils import ImageReader
+from reportlab.platypus import Table, TableStyle
+from io import BytesIO
+
+
+# -----------------------------
+# PDF (ReportLab) — SOLO ESTO, COMO ORDENASTE
+# -----------------------------
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import mm
+from reportlab.lib import colors
+from reportlab.lib.utils import ImageReader, simpleSplit
+
+# -----------------------------
+# Otros imports originales
+# -----------------------------
 import pandas as pd
 from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
 from django.views.decorators.http import require_http_methods
 from django.db import transaction
 from django.views.decorators.csrf import csrf_exempt
-import json
-from django.views.decorators.http import require_http_methods
 from django.db.models import Q
-from django.core.files.storage import default_storage
+import json
 import csv
 import io
-from django.http import HttpResponse
+
+# -----------------------------
+# IMPORTACIÓN INCORRECTA, ELIMINADA:
+# from weasyprint import HTML, CSS
+# -----------------------------
+
+from .models import Paciente
+from django.forms.models import model_to_dict
+
 try:
     import pandas as pd
 except Exception:
@@ -33,6 +74,15 @@ except Exception:
 from .models import Paciente, Orden, OrdenExamen, Resultado, Examen, ExamenParametro
 
 
+from io import BytesIO
+from reportlab.lib.pagesizes import letter
+from reportlab.pdfgen import canvas
+
+def calculate_age(birth_date):
+    today = date.today()
+    if isinstance(birth_date, date):
+        return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+    return None
 
 # ------------------------------
 # Gestión de resultados y validación (TU CÓDIGO ORIGINAL)
@@ -135,7 +185,21 @@ def nueva_orden(request):
             documento_identidad=doc,
             defaults={'nombre_completo': nombre, 'creado_por': request.user}
         )
-        numero = f"ORD{Orden.objects.count()+1:05d}"
+
+        # === Número de orden: solo dígitos, inicia en 1000, ancho 6 (dos ceros delante) ===
+        max_num = 999
+        for s in Orden.objects.values_list('numero_orden', flat=True):
+            ds = ''.join(ch for ch in (s or '') if ch.isdigit())
+            if ds:
+                try:
+                    n = int(ds)
+                    if n > max_num:
+                        max_num = n
+                except ValueError:
+                    pass
+        siguiente = max_num + 1           # → 1000 si no hay previas
+        numero = f"{siguiente:06d}"       # → 001000, 001001, ...
+
         orden = Orden.objects.create(
             paciente=paciente,
             numero_orden=numero,
@@ -143,7 +207,7 @@ def nueva_orden(request):
         )
 
         # -------------------------------------------
-        # NUEVO BLOQUE: guardar exámenes seleccionados
+        # Guardar exámenes seleccionados (igual que tenías)
         # -------------------------------------------
         examenes_codigos = request.POST.getlist('examen_codigo[]')
         examenes_precios = request.POST.getlist('examen_precio[]')
@@ -162,6 +226,19 @@ def nueva_orden(request):
                 except Examen.DoesNotExist:
                     continue
 
+        # --- NUEVO: si la acción es "etiquetas", generar PDF y devolverlo ---
+        accion = (request.POST.get('accion') or '').strip().lower()
+        if accion == 'etiquetas':
+            pdf_bytes = _build_etiquetas_pdf_y_muestras(orden, request.user)
+            filename = f"etiquetas_orden_{orden.id}.pdf"
+            # (opcional) almacenar en media/
+            default_storage.save(f"etiquetas/{filename}", ContentFile(pdf_bytes))
+            # responder inline para imprimir
+            resp = HttpResponse(pdf_bytes, content_type='application/pdf')
+            resp['Content-Disposition'] = f'inline; filename="{filename}"'
+            return resp
+
+        # --- flujo normal ---
         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
             html = render_to_string('laboratorio/partials/orden_item.html', {'orden': orden})
             return JsonResponse({'status': 'ok', 'html': html})
@@ -169,6 +246,249 @@ def nueva_orden(request):
             messages.success(request, f"Orden {numero} creada correctamente")
             return redirect('detalle_orden', orden_id=orden.id)
     return render(request, 'laboratorio/orden_form.html')
+
+
+
+def _build_etiquetas_pdf_y_muestras(orden, user):
+    """
+    Genera:
+      - 1 etiqueta general con código = orden.numero_orden
+      - 1 etiqueta por cada OrdenExamen con sufijo .1, .2, ...
+    Crea/actualiza Muestra(codigo_barra, tipo) y marca etiqueta_impresa=True.
+    Devuelve los bytes del PDF (cada etiqueta en una página 70x30 mm).
+    """
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import landscape
+
+    paciente = orden.paciente
+    fecha_str = orden.fecha.strftime("%d/%m/%Y")
+    sexo = (paciente.sexo or '').upper()[:1] if hasattr(paciente, 'sexo') and paciente.sexo else ''
+    doc = (paciente.documento_identidad or '').strip()
+
+    # Construir lista de etiquetas
+    etiquetas = []
+
+    # 1) etiqueta general (sin sufijo)
+    etiquetas.append({
+        'code': orden.numero_orden,
+        'linea_examen': 'ETIQUETA ORDEN'
+    })
+
+    # 2) etiquetas por examen (con sufijo .n)
+    i = 1
+    for oe in orden.examenes.select_related('examen').all():
+        codigo = f"{orden.numero_orden}.{i}"
+        etiquetas.append({
+            'code': codigo,
+            'linea_examen': (oe.examen.nombre or '').upper()[:30] if oe.examen else ''
+        })
+        # Crear/asegurar muestra
+        try:
+            Muestra.objects.get_or_create(
+                orden=orden,
+                codigo_barra=codigo,
+                defaults={
+                    'tipo': (oe.examen.muestra or 'Sangre') if oe.examen else 'Sangre',
+                    'creado_por': user
+                }
+            )
+        except Exception:
+            pass
+        i += 1
+
+    # PDF: tamaño por etiqueta (70x30 mm)
+    w, h = (70*mm, 30*mm)
+    buf = BytesIO()
+    c = canvas.Canvas(buf, pagesize=(w, h))
+
+    for et in etiquetas:
+        code = et['code']
+        # Barcode Code128
+        bc = code128.Code128(code, barHeight=12*mm, barWidth=0.38)
+        # Centrados
+        x_center = w/2.0
+        # Dibuja barcode
+        bw = bc.width
+        bc.drawOn(c, x_center - (bw/2.0), h - 16*mm)
+
+        # código impreso debajo del barcode
+        c.setFont("Helvetica-Bold", 8)
+        c.drawCentredString(x_center, h - 17.5*mm, code)
+
+        # Nombre paciente
+        c.setFont("Helvetica-Bold", 7.5)
+        c.drawString(2*mm, h - 21*mm, (paciente.nombre_completo or '').upper()[:36])
+
+        # Doc, sexo, fecha
+        c.setFont("Helvetica", 7)
+        linea_info = f"{doc or ''}   {sexo or ''}   {fecha_str}"
+        c.drawString(2*mm, h - 25*mm, linea_info.strip())
+
+        # Línea examen
+        c.setFont("Helvetica-Bold", 7.2)
+        c.drawString(2*mm, h - 29*mm, (et['linea_examen'] or '').upper())
+
+        c.showPage()
+
+    c.save()
+    pdf_bytes = buf.getvalue()
+    buf.close()
+
+    # Marcar muestras como impresas
+    try:
+        Muestra.objects.filter(orden=orden, codigo_barra__startswith=orden.numero_orden).update(etiqueta_impresa=True)
+    except Exception:
+        pass
+
+    return pdf_bytes
+
+
+@login_required
+def orden_etiquetas_pdf(request, orden_id):
+    """
+    Etiquetas tamaño real: 54.7 x 25.0 mm (155 x 71 pt). 1 etiqueta = 1 página.
+    Estructura: TÍTULO → BARRAS → NÚM. → NOMBRE → DOC/SEXO/FECHA ... SUFIJO(4) → DETALLE
+    Sin solapes y respetando márgenes.
+    """
+    from io import BytesIO
+    from django.http import HttpResponse
+    from django.shortcuts import get_object_or_404
+    from django.utils import timezone
+    from reportlab.pdfgen import canvas
+    from reportlab.graphics.barcode import code128
+    from reportlab.lib.units import mm
+
+    # ===== Datos base =====
+    orden = get_object_or_404(
+        Orden.objects.select_related('paciente').prefetch_related('examenes__examen'),
+        id=orden_id
+    )
+    p = orden.paciente
+    nombre = (p.nombre_completo or "").upper()
+    doc    = (p.documento_identidad or "")
+    sexo   = ((p.sexo or "").strip()[:1] or "-").upper()
+
+    def fmt_fecha(dt):
+        if not dt: return ""
+        return (timezone.localtime(dt) if timezone.is_aware(dt) else dt).strftime("%d/%m/%Y")
+
+    fecha_str = fmt_fecha(orden.fecha)
+
+    def six(num):
+        try:
+            return f"{int(num):06d}"
+        except Exception:
+            d = ''.join(ch for ch in str(num) if ch.isdigit()) or "0"
+            return d[-6:].rjust(6, "0")
+
+    base_code = six(orden.numero_orden)   # p. ej. 001234
+    sufijo4   = base_code[-4:]
+
+    # Primera etiqueta (pedido médico) + una por examen
+    etiquetas = [("PEDIDO MEDICO", base_code, "ETIQUETA ORDEN")]
+    sec = 1
+    for oe in orden.examenes.select_related('examen'):
+        ex = oe.examen
+        titulo  = (ex.muestra or ex.nombre or "MUESTRA").strip().upper()
+        detalle = (ex.area or ex.nombre or "").strip().upper()
+        etiquetas.append((titulo, f"{base_code}.{sec}", detalle))
+        sec += 1
+
+    # ===== Tamaño exacto etiqueta =====
+    W = 54.7 * mm
+    H = 25.0 * mm
+
+    # Márgenes y tamaños (ajustados para que TODO quepa)
+    M_LEFT, M_RIGHT, M_TOP, M_BOTTOM = 1*mm, 1*mm, 0.5*mm, 1.5*mm
+
+    FS_TITLE   = 8.0   # título
+    FS_NAME    = 7.0   # nombre
+    FS_LINE    = 6.2   # doc/sexo/fecha y sufijo
+    FS_DETAIL  = 6.8   # detalle
+    FS_READ    = 7.0   # número legible bajo barras
+
+    BAR_H      = 5.7*mm
+    BAR_W      = 0.33*mm
+
+    GAP_T2BAR  = 1.4*mm     # título → barras
+    GAP_BAR2N  = 1.2*mm     # barras → número legible
+    GAP_N2NM   = 1.4*mm     # número legible → nombre
+    GAP_NM2LN  = 1.2*mm     # nombre → doc/sexo/fecha
+    GAP_LN2DT  = 1.0*mm     # línea → detalle
+
+    def fit_line(c, text, font, size, maxw):
+        c.setFont(font, size)
+        if c.stringWidth(text, font, size) <= maxw:
+            return text
+        ell = "…"
+        ell_w = c.stringWidth(ell, font, size)
+        t = text
+        while t and c.stringWidth(t, font, size) + ell_w > maxw:
+            t = t[:-1]
+        return t + ell
+
+    buf = BytesIO()
+    c = canvas.Canvas(buf, pagesize=(W, H))
+
+    for titulo, code_value, detalle in etiquetas:
+        c.setPageSize((W, H))
+        left, right = M_LEFT, W - M_RIGHT
+        maxw = right - left
+
+        # Comenzamos desde arriba y bajamos
+        y = H - M_TOP
+
+        # 1) Título
+        c.setFont("Helvetica-Bold", FS_TITLE)
+        y -= FS_TITLE
+        c.drawString(left, y, fit_line(c, titulo, "Helvetica-Bold", FS_TITLE, maxw))
+        y -= GAP_T2BAR
+
+        # 2) Código de barras (centrado). Lo “anclamos” con su parte superior en y_top
+        y_top = y
+        barcode = code128.Code128(code_value, barWidth=BAR_W, barHeight=BAR_H, humanReadable=False)
+        bx = (W - barcode.width) / 2.0
+        by = y_top - BAR_H
+        barcode.drawOn(c, bx, by)
+
+        # 3) Número legible bajo barras
+        y = by - GAP_BAR2N
+        c.setFont("Helvetica-Bold", FS_READ)
+        y -= FS_READ
+        c.drawCentredString(W/2.0, y, code_value)
+
+        # 4) Nombre
+        y -= GAP_N2NM
+        c.setFont("Helvetica-Bold", FS_NAME)
+        y -= FS_NAME
+        c.drawString(left, y, fit_line(c, nombre, "Helvetica-Bold", FS_NAME, maxw))
+
+        # 5) DOC  SEXO  FECHA ................ SUFIJO(4)
+        y -= GAP_NM2LN
+        c.setFont("Helvetica", FS_LINE)
+        linea_left = f"{doc}  {sexo}  {fecha_str}"
+        # Reservamos espacio a la derecha para el sufijo
+        y -= FS_LINE
+        suf = sufijo4
+        # texto izquierda ajustado
+        reserva = c.stringWidth("   " + suf, "Helvetica-Bold", FS_LINE)
+        c.drawString(left, y, fit_line(c, linea_left, "Helvetica", FS_LINE, maxw - reserva))
+        # sufijo a la derecha
+        c.setFont("Helvetica-Bold", FS_LINE)
+        c.drawRightString(right, y, suf)
+
+        # 6) Detalle (última línea antes del margen inferior)
+        y -= GAP_LN2DT
+        c.setFont("Helvetica-Bold", FS_DETAIL)
+        y = max(y - FS_DETAIL, M_BOTTOM)  # nunca pisa el margen inferior
+        c.drawString(left, y, fit_line(c, (detalle or "").upper(), "Helvetica-Bold", FS_DETAIL, maxw))
+
+        c.showPage()
+
+    c.save()
+    buf.seek(0)
+    return HttpResponse(buf.getvalue(), content_type="application/pdf")
+
 
 
 @login_required
@@ -370,7 +690,9 @@ def catalogo_exportar(request):
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = 'attachment; filename=catalogo_principal.xlsx'
     df.to_excel(response, index=False)
+    response['Content-Disposition'] = 'attachment; filename=catalogo_principal.xlsx'
     return response
+
 
 
 # ------------------------------
@@ -717,34 +1039,49 @@ def catalogo_tecnico_import(request):
 @login_required
 def catalogo_tecnico_export(request):
     """
-    Exporta a CSV aplicando el filtro de búsqueda actual.
+    Exporta Catálogo Técnico en Excel (.xlsx).
+    Respeta el filtro actual (?q=).
     """
     q = (request.GET.get('q') or '').strip()
     qs = ExamenParametro.objects.select_related('examen').all()
+
     if q:
         qs = qs.filter(
-            Q(examen__codigo__icontains=q)|
-            Q(examen__nombre__icontains=q)|
-            Q(nombre__icontains=q)|
-            Q(unidad__icontains=q)|
-            Q(referencia__icontains=q)|
+            Q(examen__codigo__icontains=q) |
+            Q(examen__nombre__icontains=q) |
+            Q(nombre__icontains=q) |
+            Q(unidad__icontains=q) |
+            Q(referencia__icontains=q) |
             Q(metodo__icontains=q)
         )
-    out = io.StringIO()
-    writer = csv.writer(out)
-    writer.writerow(['codigo_examen','examen','parametro','unidad','referencia','metodo','observacion','acreditado'])
+
+    # Preparar DataFrame
+    datos = []
     for p in qs:
-        writer.writerow([
-            p.examen.codigo,
-            p.examen.nombre,
-            p.nombre or '',
-            p.unidad or '',
-            p.referencia or '',
-            p.metodo or '',
-            p.observacion or '',
-            '1' if p.acreditado else '0'
-        ])
-    response = HttpResponse(out.getvalue(), content_type='text/csv; charset=utf-8')
+        datos.append({
+            'Código Examen': p.examen.codigo,
+            'Examen': p.examen.nombre,
+            'Parámetro': p.nombre,
+            'Unidad': p.unidad or '',
+            'Referencia': p.referencia or '',
+            'Método': p.metodo or '',
+            'Observación': p.observacion or '',
+            'Acreditado': 'Sí' if p.acreditado else 'No',
+        })
+
+    df = pd.DataFrame(datos)
+
+    # Respuesta tipo Excel
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename=catalogo_tecnico.xlsx'
+
+    # Exportar usando pandas (openpyxl)
+    df.to_excel(response, index=False)
+
+    return response
+
 
     # ------------------------------
 # MÓDULO DE VALIDACIÓN (DESDE CERO)
@@ -972,3 +1309,199 @@ def validacion_modal_html(request, orden_id):
 
     html = ''.join(parts)
     return JsonResponse({'status': 'ok', 'html': html})
+
+
+@login_required
+def pacientes_lista(request):
+    """
+    Muestra todos los pacientes registrados en el sistema (solo lectura).
+    """
+    pacientes = Paciente.objects.all().order_by("-creado_en")
+    return render(request, "laboratorio/pacientes_lista.html", {"pacientes": pacientes})
+
+@login_required
+@require_http_methods(["GET"])
+def paciente_editar_ajax(request, paciente_id):
+    """
+    Devuelve los datos del paciente en formato JSON para precargar la burbuja de edición.
+    """
+    try:
+        paciente = Paciente.objects.get(id=paciente_id)
+        data = model_to_dict(paciente, fields=[
+            "documento_identidad", "nombre_completo", "sexo",
+            "fecha_nacimiento", "telefono", "email", "direccion"
+        ])
+        if data.get("fecha_nacimiento"):
+            data["fecha_nacimiento"] = paciente.fecha_nacimiento.strftime("%Y-%m-%d")
+        return JsonResponse({"status": "ok", "paciente": data})
+    except Paciente.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Paciente no encontrado"})
+
+
+@csrf_exempt
+@login_required
+@require_http_methods(["POST"])
+def paciente_actualizar_ajax(request, paciente_id):
+    """
+    Actualiza los datos de un paciente desde la burbuja.
+    """
+    try:
+        paciente = Paciente.objects.get(id=paciente_id)
+    except Paciente.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Paciente no encontrado"})
+
+    campos = [
+        "documento_identidad", "nombre_completo", "sexo",
+        "fecha_nacimiento", "telefono", "email", "direccion"
+    ]
+    for campo in campos:
+        valor = request.POST.get(campo)
+        if valor is not None:
+            setattr(paciente, campo, valor)
+
+    if hasattr(paciente, "modificado_por") and request.user.is_authenticated:
+        paciente.modificado_por = request.user
+
+    paciente.save()
+    return JsonResponse({"status": "ok", "message": "Paciente actualizado correctamente"})
+
+@login_required
+@require_http_methods(["POST"])
+def paciente_eliminar(request, paciente_id):
+    paciente = get_object_or_404(Paciente, id=paciente_id)
+    paciente.delete()
+    return redirect("pacientes_lista")
+
+
+# ------------------------------
+# INFORME DE RESULTADOS (NUEVO)
+# ------------------------------
+@login_required
+def informe_resultados(request, orden_id):
+    orden = get_object_or_404(
+        Orden.objects.select_related('paciente')
+                     .prefetch_related('examenes__examen', 'examenes__resultados'),
+        id=orden_id
+    )
+
+    if orden.estado != "Validado":
+        return HttpResponseForbidden("El informe solo está disponible cuando la orden está Validada.")
+
+    return render(request, "laboratorio/informe_resultados.html", {
+        "orden": orden,
+        "paciente": orden.paciente,
+        "examenes": orden.examenes.all(),
+        "fecha_informe": timezone.now(),
+        "usuario_emisor": request.user,
+    })
+def calculate_age(birth_date):
+    # ... (código de calculate_age) ...
+    today = date.today()
+    if isinstance(birth_date, date):
+        return today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+    return None
+
+@login_required
+def informe_resultados_pdf(request, orden_id):
+    """
+    Genera el informe de resultados en PDF usando WeasyPrint.
+    Agrupa por AREA (campo Examen.area) usando la misma estructura que la vista resultados_orden.
+    """
+    orden = get_object_or_404(
+        Orden.objects.select_related('paciente'),
+        id=orden_id
+    )
+
+    # Solo permitir informe si la orden está validada
+    if (orden.estado or "").strip() != "Validado":
+        return HttpResponseForbidden("El informe solo está disponible cuando la orden está Validada.")
+
+    # =========================
+    # TOMAR EXÁMENES COMO EN resultados_orden
+    # =========================
+    examenes_oe = (
+        orden.examenes  # related_name en OrdenExamen
+        .select_related('examen')
+        .prefetch_related('resultados')
+        .all()
+    )
+
+    # =========================
+    # AGRUPAR POR AREA Y EXAMEN
+    # =========================
+    grouped_data = defaultdict(lambda: defaultdict(list))
+
+    for oe in examenes_oe:
+        ex = oe.examen
+        if not ex:
+            continue
+
+        area = (ex.area or "OTROS EXÁMENES").strip().upper()
+        nombre_examen = (ex.nombre or "").strip().upper() or f"EXAMEN {ex.id}"
+
+        for r in oe.resultados.all():
+            grouped_data[area][nombre_examen].append(r)
+
+    # =========================
+    # VALIDADOR (último resultado validado)
+    # =========================
+    last_validated_result = (
+        Resultado.objects
+        .filter(orden_examen__orden=orden, validado=True)
+        .select_related('validado_por')
+        .order_by('-fecha_validacion')
+        .first()
+    )
+
+    if last_validated_result and last_validated_result.validado_por:
+        nombre_validador = (
+            last_validated_result.validado_por.get_full_name()
+            or last_validated_result.validado_por.username
+        )
+        fecha_validacion = last_validated_result.fecha_validacion
+    else:
+        nombre_validador = "PENDIENTE"
+        fecha_validacion = None
+
+    validador_data = {
+        'nombre': nombre_validador,
+        'fecha': fecha_validacion,
+    }
+
+    # =========================
+    # LOGO (ruta real en tu proyecto)
+    # =========================
+    logo_fs_path = os.path.join(
+        settings.BASE_DIR,
+        "laboratorio", "static", "laboratorio", "img", "logo_confianza.png"
+    )
+    logo_url = f"file://{logo_fs_path}"
+
+    # =========================
+    # CONTEXTO PARA TU TEMPLATE (EL TUYO)
+    # =========================
+    context = {
+        'orden': orden,
+        'paciente': orden.paciente,
+        'edad': calculate_age(orden.paciente.fecha_nacimiento)
+                if orden.paciente.fecha_nacimiento else '',
+        'grouped_data': grouped_data,
+        'validador': validador_data,
+        'logo_path': logo_url,
+    }
+
+    # =========================
+    # RENDER HTML + PDF
+    # =========================
+    html_string = render_to_string(
+        'laboratorio/informe_resultados_pdf.html',
+        context
+    )
+
+    html = HTML(string=html_string, base_url=settings.BASE_DIR)
+    pdf_file = html.write_pdf()
+
+    response = HttpResponse(pdf_file, content_type='application/pdf')
+    filename = f"informe_resultados_orden_{orden_id}.pdf"
+    response['Content-Disposition'] = f'inline; filename="{filename}"'
+    return response

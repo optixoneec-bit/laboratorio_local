@@ -1,0 +1,94 @@
+{% extends "base_star.html" %}
+
+{% block title %}
+    {% if modo == 'nuevo' %}Nuevo equipo{% else %}Editar equipo{% endif %}
+{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h3 class="page-title">
+        {% if modo == 'nuevo' %}Nuevo Equipo{% else %}Editar Equipo{% endif %}
+    </h3>
+</div>
+
+<div class="row">
+    <div class="col-md-8 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+                <h4 class="card-title mb-3">
+                    Datos del equipo
+                </h4>
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    <div class="form-group">
+                        <label>Nombre</label>
+                        {{ form.nombre }}
+                    </div>
+
+                    <div class="form-group">
+                        <label>Código interno</label>
+                        {{ form.codigo }}
+                    </div>
+
+                    <div class="form-group">
+                        <label>Fabricante</label>
+                        {{ form.fabricante }}
+                    </div>
+
+                    <div class="form-group">
+                        <label>Modelo</label>
+                        {{ form.modelo }}
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tipo de integración</label>
+                        {{ form.tipo_integracion }}
+                    </div>
+
+                    <div class="form-group">
+                        <label>Host</label>
+                        {{ form.host }}
+                        <small class="form-text text-muted">{{ form.host.help_text }}</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Puerto</label>
+                        {{ form.puerto }}
+                        <small class="form-text text-muted">{{ form.puerto.help_text }}</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Ruta de archivos (CSV/TXT)</label>
+                        {{ form.ruta_archivos }}
+                        <small class="form-text text-muted">{{ form.ruta_archivos.help_text }}</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Prefijo de archivo</label>
+                        {{ form.prefijo_archivo }}
+                        <small class="form-text text-muted">{{ form.prefijo_archivo.help_text }}</small>
+                    </div>
+
+                    <div class="form-group form-check">
+                        {{ form.activo }}
+                        <label class="form-check-label">Activo</label>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Notas</label>
+                        {{ form.notas }}
+                    </div>
+
+                    <button type="submit" class="btn btn-primary mr-2">Guardar</button>
+                    <a href="{% url 'configuracion:equipos_lista' %}" class="btn btn-light">Cancelar</a>
+                </form>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

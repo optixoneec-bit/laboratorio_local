@@ -1,0 +1,97 @@
+{% extends 'base_star.html' %}
+{% block title %}Monitor HL7{% endblock %}
+
+{% block content %}
+
+<h3 class="page-title">Monitor HL7</h3>
+
+<div class="row">
+
+    <!-- COLUMNA IZQUIERDA -->
+    <div class="col-md-4 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+
+                <!-- BOTÓN VOLVER ESTILO DEFINIDO -->
+                <a href="{% url 'configuracion:dashboard' %}" class="btn btn-light btn-sm mb-3">
+                    ← Volver
+                </a>
+
+                <h4 class="mb-3">Estado del Listener</h4>
+
+                {% if listener_status %}
+                    <span class="badge bg-success">ESCUCHANDO</span>
+                {% else %}
+                    <span class="badge bg-danger">DETENIDO</span>
+                {% endif %}
+
+                <hr>
+
+                <button id="btnStart" class="btn btn-success w-100 mb-2">Iniciar Listener</button>
+                <button id="btnStop" class="btn btn-danger w-100">Detener Listener</button>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- COLUMNA DERECHA -->
+    <div class="col-md-8 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+
+                <h4 class="mb-3">Últimos mensajes recibidos</h4>
+
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>IP</th>
+                            <th>Sample</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in mensajes %}
+                        <tr>
+                            <td>{{ m.fecha_recepcion }}</td>
+                            <td>{{ m.ip_equipo }}</td>
+                            <td>{{ m.sample_id }}</td>
+                            <td>
+                                <a href="{% url 'configuracion:hl7_ver' m.id %}" class="btn btn-primary btn-sm">
+                                    Ver
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center">No hay mensajes todavía</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <a href="{% url 'configuracion:hl7_historial' %}" class="btn btn-info mt-3">
+                    Ver historial completo
+                </a>
+
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+document.getElementById('btnStart').onclick = function(){
+    fetch('/configuracion/hl7/start/')
+        .then(r => r.json())
+        .then(d => location.reload());
+}
+
+document.getElementById('btnStop').onclick = function(){
+    fetch('/configuracion/hl7/stop/')
+        .then(r => r.json())
+        .then(d => location.reload());
+}
+</script>
+
+{% endblock %}

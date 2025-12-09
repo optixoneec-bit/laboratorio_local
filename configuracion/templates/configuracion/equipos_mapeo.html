@@ -1,0 +1,82 @@
+{% extends "base_star.html" %}
+{% block title %}Mapeos de equipo{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h3 class="page-title"> Mapeos de Equipo </h3>
+</div>
+
+<div class="row">
+    <div class="col-12 grid-margin stretch-card">
+        <div class="card">
+            <div class="card-body">
+
+                <a href="{% url 'configuracion:equipos_lista' %}" class="btn btn-light btn-sm mb-3">
+                    <i class="mdi mdi-arrow-left"></i> Volver
+                </a>
+
+                <div class="d-flex justify-content-between mb-2">
+                    <div>
+                        <h4 class="card-title mb-1">Equipo: {{ equipo.nombre }} ({{ equipo.codigo }})</h4>
+                        <p class="text-muted mb-0">
+                            Tipo: {{ equipo.get_tipo_integracion_display }}
+                            {% if equipo.host or equipo.puerto %}
+                                – {{ equipo.host|default:"-" }}{% if equipo.puerto %}:{{ equipo.puerto }}{% endif %}
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div>
+                        <a href="{% url 'configuracion:equipo_mapeo_nuevo' equipo.id %}" class="btn btn-primary btn-sm">
+                            <i class="mdi mdi-plus"></i> Nuevo mapeo
+                        </a>
+                    </div>
+                </div>
+
+                <div class="table-responsive mt-3">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Código equipo</th>
+                                <th>Examen interno</th>
+                                <th>Parámetro</th>
+                                <th>Activo</th>
+                                <th class="text-end">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for m in mapeos %}
+                            <tr>
+                                <td>{{ m.codigo_equipo }}</td>
+                                <td>{% if m.examen %}{{ m.examen.nombre }}{% else %}-{% endif %}</td>
+                                <td>{{ m.parametro|default:"-" }}</td>
+                                <td>
+                                    {% if m.activo %}
+                                        <span class="badge badge-success">Sí</span>
+                                    {% else %}
+                                        <span class="badge badge-danger">No</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <a href="{% url 'configuracion:equipo_mapeo_editar' equipo.id m.id %}" class="btn btn-outline-primary btn-sm">
+                                        <i class="mdi mdi-pencil"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="5" class="text-center text-muted">
+                                    No hay mapeos configurados para este equipo.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,151 +1,93 @@
 {% extends "base_star.html" %}
+{% load static %}
 {% block title %}Resultados{% endblock %}
 
 {% block extra_head %}
 <style>
-:root{
-  --slx-blue:#2d7bd8;
-  --slx-cyan:#29a7a4;
-  --slx-border:#e3e6ea;
-  --slx-bg:#fff;
-  --slx-gray:#8e98a7;
-}
-.slx-card{
-  background:var(--slx-bg);
-  border:1px solid var(--slx-border);
-  border-radius:12px;
-  padding:16px 20px;
-  box-shadow:0 2px 6px rgba(0,0,0,.04);
-}
-.slx-title{
-  background:var(--slx-blue);
-  color:#fff;
-  font-weight:700;
-  padding:10px 14px;
-  border-radius:8px;
-  margin-bottom:14px;
-  text-transform:uppercase;
-  display:flex;
-  align-items:center;
-  gap:8px;
-}
-.slx-title span.icon{
-  font-size:1.2rem;
-}
-.slx-table{
-  width:100%;
-  border-collapse:collapse;
-  border:1px solid var(--slx-border);
-  border-radius:8px;
-  overflow:hidden;
-}
-.slx-table th{
-  background:var(--slx-cyan);
-  color:#fff;
-  text-align:left;
-  padding:10px;
-  font-size:.9rem;
-}
-.slx-table td{
-  padding:10px;
-  border-top:1px solid var(--slx-border);
-  font-size:.9rem;
-  vertical-align:middle;
-}
-.slx-table tbody tr:hover{
-  background:#f7fbff;
-}
-.slx-searchbar{
-  display:flex;
-  gap:10px;
-  margin-bottom:18px;
-}
-.slx-input{
-  flex:1;
-  border:1px solid var(--slx-border);
-  border-radius:8px;
-  padding:8px 10px;
-  font-size:.9rem;
-}
-.slx-btn{
-  background:var(--slx-blue);
-  color:#fff;
-  border:0;
-  border-radius:8px;
-  padding:8px 14px;
-  font-weight:600;
-  cursor:pointer;
-  transition:background .2s ease;
-}
-.slx-btn:hover{ background:#1f66c2; }
-.slx-empty{
-  text-align:center;
-  padding:18px;
-  color:var(--slx-gray);
-  font-size:.9rem;
-}
-.action-btn{
-  background:#29a7a4;
-  color:#fff;
-  padding:6px 12px;
-  border-radius:6px;
-  border:0;
-  font-size:.85rem;
-  font-weight:600;
-  text-decoration:none;
-}
-.action-btn:hover{ background:#1d8e8a; color:#fff; }
-.pdf-btn{
-  background:#777;
-}
-.pdf-btn:hover{ background:#555; }
+  .slx-card{
+    background:#fff;
+    border-radius:10px;
+    box-shadow:0 2px 6px rgba(0,0,0,.05);
+    padding:22px 24px;
+    margin-top:20px;
+  }
+  .table th, .table td{ vertical-align:middle; }
+  .btn-sm{ padding:3px 10px; }
+
+  /* NO COLORES INTERCALADOS */
+  .table tbody tr{ background:#fff !important; }
+  .table tbody tr:hover{ background:#f5f7fb !important; transition:background .15s ease-in-out; }
 </style>
 {% endblock %}
 
 {% block content %}
+
 <div class="slx-card">
-  <div class="slx-title"><span class="icon">🧫</span> RESULTADOS</div>
 
- 
+  <!-- TITULO + BUSCADOR -->
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Órdenes pendientes — Resultados</h4>
 
-  <form method="get" class="slx-searchbar">
-    <input type="text"
-           name="q"
-           class="slx-input"
-           placeholder="Buscar por paciente, documento o número de orden"
-           value="{{ query|default_if_none:'' }}">
-    <button type="submit" class="slx-btn">🔍 Buscar</button>
-  </form>
+    <form method="get" class="d-flex" style="max-width:320px;">
+      <input type="text"
+             name="q"
+             value="{{ query }}"
+             class="form-control form-control-sm me-2"
+             placeholder="Buscar...">
+      <button type="submit" class="btn btn-sm btn-outline-primary">Buscar</button>
+    </form>
+  </div>
 
-  <div class="table-container">
-    <table class="slx-table">
-      <thead>
+  <!-- TABLA -->
+  <div class="table-responsive">
+    <table class="table table-hover align-middle">
+      <thead class="table-light">
         <tr>
-          <th style="width:12%">Orden</th>
+          <th style="width:120px;">Orden</th>
           <th>Paciente</th>
-          <th style="width:20%">Documento</th>
-          <th style="width:18%">Fecha</th>
-          <th style="width:22%">Acciones</th>
+          <th style="width:180px;">Documento</th>
+          <th style="width:200px;">Fecha</th>
+          <th style="width:200px;" class="text-end">Acciones</th>
         </tr>
       </thead>
+
       <tbody>
-        {% if ordenes %}
-          {% for orden in ordenes %}
-          <tr>
-            <td><strong>{{ orden.numero_orden }}</strong></td>
-            <td>{{ orden.paciente.nombre_completo }}</td>
-            <td>{{ orden.paciente.documento_identidad }}</td>
-            <td>{{ orden.fecha|date:"d/m/Y H:i" }}</td>
-            <td>
-              <a href="{% url 'resultados_orden' orden.id %}" class="action-btn">Cargar Resultados</a>
-            </td>
-          </tr>
-          {% endfor %}
-        {% else %}
-          <tr><td colspan="5" class="slx-empty">No hay órdenes pendientes para cargar resultados.</td></tr>
-        {% endif %}
+      {% if ordenes %}
+        {% for o in ordenes %}
+        <tr>
+          <td class="fw-semibold">{{ o.numero_orden }}</td>
+
+          <td>
+            <div class="fw-semibold">{{ o.paciente.nombre_completo }}</div>
+            <div class="text-muted small">{{ o.paciente.documento_identidad }}</div>
+          </td>
+
+          <td>{{ o.paciente.documento_identidad }}</td>
+
+          <td>
+            <i class="mdi mdi-calendar-clock me-1"></i>
+            {{ o.fecha|date:"d/m/Y H:i" }}
+          </td>
+
+          <td class="text-end">
+            <a href="{% url 'resultados_orden' o.id %}" 
+               class="btn btn-sm btn-primary">
+              Cargar resultados
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr>
+          <td colspan="5" class="text-center text-muted py-3">
+            No hay órdenes pendientes.
+          </td>
+        </tr>
+      {% endif %}
       </tbody>
+
     </table>
   </div>
 </div>
+
 {% endblock %}
