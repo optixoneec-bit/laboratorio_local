@@ -208,6 +208,218 @@ def hl7_ver(request, pk):
     })
 
 
+def _hl7_parse_msh(raw_text):
+    """
+    Devuelve dict mínimo desde MSH:
+      {'app': 'Genrui', 'facility': 'KT-6610'}
+    """
+    out = {'app': '', 'facility': ''}
+    try:
+        for line in (raw_text or '').splitlines():
+            if line.startswith('MSH|'):
+                parts = line.split('|')
+                # MSH|^~\&|SENDING_APP|SENDING_FACILITY|...
+                out['app'] = (parts[2] or '').strip() if len(parts) > 2 else ''
+                out['facility'] = (parts[3] or '').strip() if len(parts) > 3 else ''
+                break
+    except Exception:
+        pass
+    return out
+
+
+def _infer_equipo_for_msg(msg):
+    """
+    Intenta determinar el Equipo (configuracion.Equipo) para un HL7Mensaje.
+    Prioridad:
+      1) IP del mensaje contra host del equipo
+      2) MSH sending app/facility contra nombre/fabricante/modelo/codigo
+    """
+    try:
+        if msg.ip_equipo:
+            eq = (
+                Equipo.objects
+                .filter(activo=True, host=str(msg.ip_equipo).strip())
+                .order_by('id')
+                .first()
+            )
+            if eq:
+                return eq
+    except Exception:
+        pass
+
+    msh = _hl7_parse_msh(getattr(msg, 'mensaje_raw', '') or '')
+    app = msh.get('app', '') or ''
+    fac = msh.get('facility', '') or ''
+
+    try:
+        qs = Equipo.objects.filter(activo=True)
+        if app:
+            qs = qs.filter(models.Q(nombre__icontains=app) | models.Q(fabricante__icontains=app) | models.Q(codigo__icontains=app))
+        if fac:
+            qs = qs.filter(models.Q(modelo__icontains=fac) | models.Q(codigo__icontains=fac) | models.Q(nombre__icontains=fac))
+        eq = qs.order_by('id').first()
+        return eq
+    except Exception:
+        return None
+
+
+def _extract_obx_items(raw_text):
+    """
+    Devuelve lista de dicts:
+      [{'code': 'WBC', 'value': '6.5', 'unit': '10^9/L', 'ref': '4.0-10.0', 'type': 'NM'}, ...]
+    code = OBX-3 antes de '^'
+    value = OBX-5
+    unit  = OBX-6
+    ref   = OBX-7
+    """
+    items = []
+    for line in (raw_text or '').splitlines():
+        line = (line or '').strip()
+        if not line.startswith('OBX|'):
+            continue
+        parts = line.split('|')
+        if len(parts) < 6:
+            continue
+
+        vtype = (parts[2] or '').strip()  # OBX-2
+        obx3 = (parts[3] or '').strip()   # OBX-3
+        val = (parts[5] or '').strip()    # OBX-5
+        unit = (parts[6] or '').strip() if len(parts) > 6 else ''  # OBX-6
+        ref = (parts[7] or '').strip() if len(parts) > 7 else ''   # OBX-7
+
+        code = obx3.split('^')[0].strip() if obx3 else ''
+        if not code:
+            continue
+
+        items.append({
+            'code': code,
+            'value': val,
+            'unit': unit,
+            'ref': ref,
+            'type': vtype,
+        })
+    return items
+
+
+@login_required
+@requiere_modulo('mod_configuracion')
+@require_POST
+def hl7_aplicar_a_orden(request, pk):
+    """
+    Aplica el HL7Mensaje a la Orden que coincida con msg.sample_id.
+    Usa EquipoMapeo (activo) para convertir OBX -> Resultado.
+    """
+    msg = get_object_or_404(HL7Mensaje, pk=pk)
+
+    sample_id = (msg.sample_id or '').strip()
+    if not sample_id:
+        return JsonResponse({'ok': False, 'error': 'HL7 sin sample_id. No se puede enlazar a una Orden.'}, status=400)
+
+    # Importar modelos del laboratorio (tu app de resultados)
+    try:
+        from laboratorio.models import Orden, OrdenExamen, Resultado
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'No se pudo importar modelos de laboratorio.'}, status=500)
+
+    orden = Orden.objects.filter(numero_orden=sample_id).first()
+    if not orden:
+        return JsonResponse({'ok': False, 'error': f'No existe Orden con numero_orden={sample_id}.'}, status=404)
+
+    equipo = _infer_equipo_for_msg(msg)
+    if not equipo:
+        return JsonResponse({'ok': False, 'error': 'No se pudo determinar el Equipo para este HL7. (Revisa host/IP o MSH)'}, status=400)
+
+    # Mapeos activos del equipo
+    mapeos = (
+        EquipoMapeo.objects
+        .filter(equipo=equipo, activo=True)
+        .select_related('examen')
+        .all()
+    )
+    mapa = {}
+    for mp in mapeos:
+        if not mp.codigo_equipo:
+            continue
+        if not mp.examen:
+            continue
+        mapa[mp.codigo_equipo.strip()] = mp
+
+    if not mapa:
+        return JsonResponse({'ok': False, 'error': f'El equipo {equipo.codigo} no tiene mapeos activos con examen asignado.'}, status=400)
+
+    obx_items = _extract_obx_items(msg.mensaje_raw or '')
+    if not obx_items:
+        return JsonResponse({'ok': False, 'error': 'El HL7 no contiene OBX procesables.'}, status=400)
+
+    creados = 0
+    actualizados = 0
+    ignorados = 0
+
+    for it in obx_items:
+        code = it['code']
+        mp = mapa.get(code)
+        if not mp:
+            ignorados += 1
+            continue
+
+        # Saltar binarios (histogram/scatter) aunque estén mapeados por error
+        if '.Binary' in code or 'Histogram' in code or 'Scatter' in code:
+            ignorados += 1
+            continue
+
+        # Determinar OrdenExamen del examen mapeado
+        oe, _ = OrdenExamen.objects.get_or_create(
+            orden=orden,
+            examen=mp.examen,
+            defaults={'precio': 0.00, 'estado': 'Pendiente'}
+        )
+
+        # Crear/actualizar Resultado por parámetro interno
+        param = (mp.parametro or '').strip()
+        if not param:
+            # Si alguien dejó el parámetro vacío, no podemos guardar
+            ignorados += 1
+            continue
+
+        obj, created = Resultado.objects.update_or_create(
+            orden_examen=oe,
+            parametro=param,
+            defaults={
+                'valor': it['value'] if it['value'] != '' else None,
+                'unidad': it['unit'] if it['unit'] != '' else None,
+                'referencia': it['ref'] if it['ref'] != '' else None,
+            }
+        )
+        try:
+            obj.marca_fuera_de_rango()
+            obj.save(update_fields=['fuera_de_rango'])
+        except Exception:
+            pass
+
+        if created:
+            creados += 1
+        else:
+            actualizados += 1
+
+    # Marcar msg como procesado
+    try:
+        msg.estado = 'procesado'
+        msg.save(update_fields=['estado'])
+    except Exception:
+        pass
+
+    return JsonResponse({
+        'ok': True,
+        'orden_id': orden.id,
+        'orden_numero': orden.numero_orden,
+        'equipo': equipo.codigo,
+        'creados': creados,
+        'actualizados': actualizados,
+        'ignorados': ignorados,
+        'total_obx': len(obx_items),
+    })
+
+
 # ------------------------------
 # FORMULARIOS USUARIOS / ROLES
 # ------------------------------

@@ -10,10 +10,13 @@ from reportlab.pdfgen import canvas
 from reportlab.lib import colors
 from reportlab.lib.utils import ImageReader
 
-from .models import Orden, OrdenExamen, Resultado
+from .models import Orden, OrdenExamen, Resultado, ExamenParametro
 import os
 import math
 import re
+import logging
+
+logger = logging.getLogger(__name__)
 
 # ----------------------------------------------------------------------------------
 #   CLASE PRINCIPAL PARA DIBUJAR EL INFORME PDF
@@ -21,25 +24,47 @@ import re
 
 class InformeCanvas:
 
+    # --- CONSTANTES DE MAQUETACIÓN ---
+    MARGIN_TOP = 50
+    MARGIN_BOTTOM = 60
+    LINE_HEIGHT = 12
+    SAFE_LIMIT_Y = 80 
+
+    # Posiciones de columnas de resultados 
+    COL_EXAMEN_X = 50
+    COL_RESULTADO_X = 255
+    COL_UNIDAD_X = 330
+    COL_REFERENCIA_X = 420
+
     def __init__(self, c, orden):
         self.c = c
         self.orden = orden
         self.width, self.height = A4
-        self.left = 60
-        self.right = self.width - 60
-        self.y_current = self.height - 60
-        self.line_height = 12
-        self.col_mid = (self.left + self.right) / 2
+        self.left = self.MARGIN_TOP 
+        self.right = self.width - self.MARGIN_TOP
+        self.y_current = self.height - self.MARGIN_TOP
+        self.col_mid = (self.left + self.right) / 2 # <-- DEFINICIÓN MANTENIDA
         self.page_number = 1
+        self._drawing_results = False 
 
-        # Colores base
-        # Ejes: gris oscuro (se quita el magenta fuerte)
+        # Colores base para gráficas
         self.color_axis = colors.Color(0.2, 0.2, 0.2)
-        # Curva de histograma
         self.color_curve = colors.Color(0, 0.8, 1)
-        # Fallback para DIFF/BASO
         self.color_diff_points = colors.Color(0, 0.7, 1)
         self.color_baso_points = colors.Color(0, 0.9, 0.7)
+
+    # ----------------------------- PAGINACIÓN -----------------------------
+    def _new_page(self, reset_y=True):
+        self._draw_footer() # Dibuja el footer antes de cambiar de página
+        self.c.showPage()
+        self.page_number += 1
+
+        if reset_y:
+            self.y_current = self.height - self.MARGIN_TOP 
+
+        if self._drawing_results:
+            self.y_current -= 18 
+            self._draw_results_header()
 
     # ----------------------------- UTILIDADES -----------------------------
     def _calculate_age(self):
@@ -53,6 +78,8 @@ class InformeCanvas:
         return "—"
 
     def _draw_text_wrapped(self, text, x, y, max_width, font_name="Helvetica", font_size=9):
+        line_height = self.LINE_HEIGHT
+        
         self.c.setFont(font_name, font_size)
         textobject = self.c.beginText(x, y)
         textobject.setFont(font_name, font_size)
@@ -73,7 +100,7 @@ class InformeCanvas:
         self.c.drawText(textobject)
 
         num_lines = len(textobject.getLines())
-        return y_initial - (num_lines * self.line_height)
+        return y_initial - (num_lines * line_height)
 
     # ----------------------------- CABECERA -----------------------------
     def _draw_header(self):
@@ -83,7 +110,7 @@ class InformeCanvas:
         )
 
         logo_width = 260
-        logo_y = self.height - 130  # posición vertical del logo
+        logo_y = self.height - 130
 
         try:
             logo = ImageReader(logo_path)
@@ -98,7 +125,7 @@ class InformeCanvas:
                 mask="auto"
             )
         except Exception as e:
-            print("NO SE PUDO CARGAR LOGO:", e)
+            logger.error(f"NO SE PUDO CARGAR LOGO: {e}")
 
         # Título
         self.c.setFont("Helvetica-Bold", 12)
@@ -107,25 +134,17 @@ class InformeCanvas:
         self.c.drawString((self.width - tw) / 2, logo_y - -35, title)
 
         # Espacio después de cabecera
-        self.y_current = logo_y - -5
-
+        self.y_current = logo_y - -12
     # ----------------------------- DATOS DEL PACIENTE -----------------------------
     def _draw_patient_and_order_data(self):
+        if self.y_current < self.SAFE_LIMIT_Y:
+            self._new_page()
 
         self.c.setFont("Helvetica-Bold", 11)
         self.c.drawString(self.left, self.y_current, "Datos del Paciente")
         self.c.drawString(self.col_mid, self.y_current, "Datos de la Orden")
 
         self.y_current -= 12
-
-        datos_paciente = [
-            ("Nombre", self.orden.paciente.nombre_completo),
-            ("Documento", self.orden.paciente.documento_identidad),
-            ("Edad", self._calculate_age()),
-            ("Teléfono", self.orden.paciente.telefono or "—"),
-            ("Email", self.orden.paciente.email or "—"),
-            ("Dirección", self.orden.paciente.direccion or "—"),
-        ]
 
         # obtener nombre del usuario que validó (si existe)
         validador_nombre = None
@@ -146,6 +165,15 @@ class InformeCanvas:
         except Exception:
             validador_nombre = None
 
+        datos_paciente = [
+            ("Nombre", self.orden.paciente.nombre_completo),
+            ("Documento", self.orden.paciente.documento_identidad),
+            ("Edad", self._calculate_age()),
+            ("Teléfono", self.orden.paciente.telefono or "—"),
+            ("Email", self.orden.paciente.email or "—"),
+            ("Dirección", self.orden.paciente.direccion or "—"),
+        ]
+
         datos_orden = [
             ("N° Orden", self.orden.numero_orden),
             ("Fecha", self.orden.fecha.strftime("%d/%m/%Y %H:%M")),
@@ -160,6 +188,7 @@ class InformeCanvas:
         y = self.y_current
 
         for i in range(max_filas):
+            
             if i < len(datos_paciente):
                 self.c.setFont("Helvetica-Bold", 9)
                 self.c.drawString(self.left, y, f"{datos_paciente[i][0]}:")
@@ -172,7 +201,7 @@ class InformeCanvas:
                 self.c.setFont("Helvetica", 9)
                 self.c.drawString(self.col_mid + 70, y, str(datos_orden[i][1]))
 
-            y -= self.line_height
+            y -= self.LINE_HEIGHT
 
         self.y_current = y - 1
         self.c.line(self.left, self.y_current, self.right, self.y_current)
@@ -185,23 +214,27 @@ class InformeCanvas:
         self.c.setFillColor(colors.black)
         self.c.setFont("Helvetica-Bold", 9)
 
-        self.c.drawString(self.left + 5, self.y_current + 3, "Examen")
-        self.c.drawString(self.left + 190, self.y_current + 3, "Resultado")
-        self.c.drawString(self.left + 270, self.y_current + 3, "Unidad")
-        self.c.drawString(self.left + 380, self.y_current + 3, "Referencia")
+        self.c.drawString(self.COL_EXAMEN_X, self.y_current + 3, "Parámetro/Examen")
+        self.c.drawString(self.COL_RESULTADO_X, self.y_current + 3, "Resultado")
+        self.c.drawString(self.COL_UNIDAD_X, self.y_current + 3, "Unidad")
+        self.c.drawString(self.COL_REFERENCIA_X, self.y_current + 3, "Referencia")
 
         self.y_current -= 18
         self.c.setFont("Helvetica", 9)
 
     # ----------------------------- RESULTADOS AGRUPADOS POR ÁREA ------------------
     def _draw_results(self):
+        self._drawing_results = True
+
+        if self.y_current < self.SAFE_LIMIT_Y:
+            self._new_page()
+
         self.c.setFont("Helvetica-Bold", 11)
         self.c.drawString(self.left, self.y_current, "Resultados de Exámenes")
         self.y_current -= 18
 
         self._draw_results_header()
 
-        # Obtener exámenes ordenados por área y nombre
         examenes = (
             OrdenExamen.objects.filter(orden=self.orden)
             .select_related("examen")
@@ -209,63 +242,98 @@ class InformeCanvas:
             .order_by("examen__area", "examen__nombre")
         )
 
-        # Agrupar por área
         grupos = {}
         for ex in examenes:
             area = ex.examen.area or "OTROS"
             grupos.setdefault(area, []).append(ex)
 
-        # Dibujar área -> examen -> parámetros
+        graficas_dibujadas = False
+
         for area, examenes_area in grupos.items():
-            # Título del área
+
+            if self.y_current < self.SAFE_LIMIT_Y:
+                self._new_page()
+
             self.c.setFont("Helvetica-Bold", 9)
             titulo = area
-            titulo_width = self.c.stringWidth(titulo, "Helvetica-Bold", 9)
-            self.c.drawString((self.width - titulo_width) / 2, self.y_current, titulo)
-            self.y_current -= 12
+            self.c.drawCentredString(self.width / 2, self.y_current, titulo) 
+            self.y_current -= self.LINE_HEIGHT
 
             for ex in examenes_area:
-                # Nombre del examen como subtítulo
-                self.c.setFont("Helvetica-Bold", 9)
-                self.c.drawString(self.left, self.y_current, ex.examen.nombre)
-                self.y_current -= 12
+                if self.y_current < self.SAFE_LIMIT_Y:
+                    self._new_page()
 
-                # Parámetros
+                # 1. Esto solo pone el título en negrita si hay varios resultados
+                if ex.resultados.count() > 1:
+                    self.c.setFont("Helvetica-Bold", 9)
+                    self.c.drawString(self.left, self.y_current, ex.examen.nombre)
+                    self.y_current -= self.LINE_HEIGHT
+                
+                # 2. IMPORTANTE: Este 'for' debe estar alineado con el 'if' de arriba, NO adentro.
                 for r in ex.resultados.all():
-                    self.c.setFont("Helvetica", 9)
-                    self.c.drawString(self.left + 0, self.y_current, r.parametro or "")
-                    self.c.drawString(self.left + 200, self.y_current, r.valor or "-")
-                    self.c.drawString(self.left + 290, self.y_current, r.unidad or "")
-                    self.c.drawString(self.left + 400, self.y_current, r.referencia or "")
-                    self.y_current -= 12
+                    if self.y_current < self.SAFE_LIMIT_Y:
+                        self._new_page()
 
-                    # Líneas adicionales debajo del examen (método, observación, verificado)
+                    self.c.setFont("Helvetica", 9)
+                    self.c.drawString(self.COL_EXAMEN_X, self.y_current, r.parametro or "")
+
+                    self.c.setFont("Helvetica", 9)
+                    self.c.drawString(self.COL_EXAMEN_X, self.y_current, r.parametro or "")
+                    self.c.drawString(self.COL_RESULTADO_X, self.y_current, r.valor or "-")
+                    self.c.drawString(self.COL_UNIDAD_X, self.y_current, r.unidad or "")
+                    self.c.drawString(self.COL_REFERENCIA_X, self.y_current, r.referencia or "")
+                    self.y_current -= self.LINE_HEIGHT
+
+                    # --------------------- LÓGICA: Ocultar líneas vacías o None ---------------------
                     extra_y = self.y_current - 0
                     self.c.setFont("Helvetica-Oblique", 7)
 
-                    if getattr(r, "metodo", None):
-                        self.c.drawString(self.left + 0, extra_y, f"Método: {r.metodo}")
+                    metodo = getattr(r, "metodo", None)
+                    if metodo and str(metodo).strip() and str(metodo).lower() != 'none':
+                        if extra_y < self.SAFE_LIMIT_Y + 9:
+                            self._new_page()
+                            extra_y = self.y_current - 0
+
+                        self.c.drawString(self.left + 0, extra_y, f"Método: {metodo}")
                         extra_y -= 9
 
-                    if getattr(r, "observacion", None):
-                        self.c.drawString(self.left + 0, extra_y, f"Obs.: {r.observacion}")
+                    observacion = getattr(r, "observacion", None)
+                    if observacion and str(observacion).strip() and str(observacion).lower() != 'none':
+                        if extra_y < self.SAFE_LIMIT_Y + 9:
+                            self._new_page()
+                            extra_y = self.y_current - 0
+
+                        self.c.drawString(self.left + 0, extra_y, f"Obs.: {observacion}")
                         extra_y -= 9
 
-                    if getattr(r, "verificado", False):
+                    verificado = getattr(r, "verificado", False)
+                    if verificado:
+                        if extra_y < self.SAFE_LIMIT_Y + 9:
+                            self._new_page()
+                            extra_y = self.y_current - 0
+
                         self.c.drawString(self.left + 0, extra_y, "Verificado")
                         extra_y -= 9
 
                     self.y_current = extra_y - 3
+                    # --------------------------------------------------------------------------------------
 
-                self.y_current -= 6  # espacio después del examen
+                self.y_current -= 6 
 
-            self.y_current -= 10  # espacio después del área
+            if ("HEMATOLOG" in area.upper() or "BIOMETRIA" in area.upper() or "HEMOGRAMA" in area.upper()) and not graficas_dibujadas:
+                self._new_page()
+                graphs_were_drawn = self._draw_graphs_section(check_y=False)
+                if graphs_were_drawn:
+                    graficas_dibujadas = True
+                    #if self.y_current < self.SAFE_LIMIT_Y:
+                        #self._new_page()
+
+            self.y_current -= 10
+
+        self._drawing_results = False
 
     # ----------------------------- HL7 → GRÁFICAS -----------------------------
     def _get_hl7_message_for_order(self):
-        """
-        Intenta localizar un HL7Mensaje que corresponda a esta orden.
-        """
         try:
             from configuracion.models import HL7Mensaje
         except Exception:
@@ -277,6 +345,7 @@ class InformeCanvas:
         sample_candidates.append(str(self.orden.id))
 
         try:
+            from configuracion.models import HL7Mensaje
             msg = (
                 HL7Mensaje.objects
                 .filter(sample_id__in=sample_candidates)
@@ -288,9 +357,6 @@ class InformeCanvas:
             return None
 
     def _parse_hist_binary(self, raw):
-        """
-        '16711680;0,0,1,2,5,...' -> lista de enteros [0,0,1,2,5,...]
-        """
         if not raw:
             return None
         try:
@@ -307,10 +373,6 @@ class InformeCanvas:
             return None
 
     def _parse_scatter_binary(self, raw):
-        """
-        '16711680,(10,20)(30,40);255,(5,5)(6,7)' ->
-        [{'color': Color, 'points': [(x,y), ...]}, ...]
-        """
         if not raw:
             return None
 
@@ -359,11 +421,6 @@ class InformeCanvas:
 
     # ----------------------------- GRÁFICAS: HISTOGRAMAS -------------------------
     def _draw_hist(self, x, y, width, height, values, label):
-        """
-        Histograma estilo equipo:
-        - Ejes tipo "L".
-        - Escalas específicas para RBC y PLT (0–300 / 0–40) con 'fL'.
-        """
         if not values:
             return
 
@@ -395,8 +452,8 @@ class InformeCanvas:
         # Ejes tipo "L"
         self.c.setStrokeColor(self.color_axis)
         self.c.setLineWidth(0.7)
-        self.c.line(x, y, x, y + height)      # eje Y
-        self.c.line(x, y, x + width, y)       # eje X
+        self.c.line(x, y, x, y + height)
+        self.c.line(x, y, x + width, y)
 
         # Escalas específicas
         self.c.setFont("Helvetica", 6)
@@ -449,11 +506,6 @@ class InformeCanvas:
 
     # ----------------------------- GRÁFICAS: SCATTER -----------------------------
     def _draw_scatter(self, x, y, width, height, data, label, baso=False):
-        """
-        Scatter:
-        - data: [{'color': Color, 'points': [(x,y), ...]}, ...]
-        - Ejes tipo "L", LAS / MAS, título (DIFF / BASO).
-        """
         if not data:
             return
 
@@ -493,8 +545,8 @@ class InformeCanvas:
         # Ejes tipo "L"
         self.c.setStrokeColor(self.color_axis)
         self.c.setLineWidth(0.7)
-        self.c.line(x, y, x, y + height)      # eje Y
-        self.c.line(x, y, x + width, y)       # eje X
+        self.c.line(x, y, x, y + height)
+        self.c.line(x, y, x + width, y)
 
         # Texto LAS / MAS
         self.c.setFont("Helvetica-Bold", 7)
@@ -508,25 +560,21 @@ class InformeCanvas:
         self.c.drawString(x + (width - title_w) / 2.0, y + height + 4, label)
 
     # ----------------------------- SECCIÓN DE GRÁFICAS ---------------------------
-    def _draw_graphs_section(self):
-        """
-        Sección 'Gráficas del equipo'.
-        RBC / PLT / DIFF / BASO en una sola fila, con más espacio entre ellas.
-        """
+    def _draw_graphs_section(self, check_y=False):
+        
         msg = self._get_hl7_message_for_order()
         if not msg:
-            return
+            return False
 
         raw = msg.mensaje_raw or ""
         if not raw:
-            return
+            return False
 
         rbc_hist_raw = None
         plt_hist_raw = None
         diff_raw = None
         baso_raw = None
 
-        # Extraer las cadenas Binary desde el HL7
         for line in str(raw).splitlines():
             line = line.strip()
             if not line.startswith("OBX|"):
@@ -549,7 +597,7 @@ class InformeCanvas:
                 baso_raw = val
 
         if not any([rbc_hist_raw, plt_hist_raw, diff_raw, baso_raw]):
-            return
+            return False
 
         # Parseo
         rbc_values  = self._parse_hist_binary(rbc_hist_raw)  if rbc_hist_raw else None
@@ -558,36 +606,35 @@ class InformeCanvas:
         baso_groups = self._parse_scatter_binary(baso_raw)   if baso_raw else None
 
         if not any([rbc_values, plt_values, diff_groups, baso_groups]):
-            return
+            return False
 
         # Título sección
         self.y_current -= 20
-        self.c.setFont("Helvetica-Bold", 10)
+        
+        block_height = 80
+        if check_y and self.y_current - 128 < self.SAFE_LIMIT_Y:
+            self._new_page()
+
+        self.c.setFont("Helvetica-Bold", 8)
         self.c.setFillColor(colors.black)
         self.c.drawString(self.left, self.y_current, "Gráficas del equipo")
         self.y_current -= 18
 
-        # Layout: 4 columnas en una fila, con GAP entre gráficas
-        block_height = 80
+        # Layout: 4 columnas en una fila
         total_width = (self.right - self.left) - 20
-        gap = 25  # espacio entre gráficas
-
+        gap = 25
         col_width = (total_width - (gap * 3)) / 4.0
 
         x0 = self.left + 10
         y_graph = self.y_current - block_height - 10
-        if y_graph < 120:
-            y_graph = 120
 
-        # RBC
+        # Dibujo de gráficas
         if rbc_values:
             self._draw_hist(x0, y_graph, col_width, block_height, rbc_values, "RBC")
 
-        # PLT
         if plt_values:
             self._draw_hist(x0 + col_width + gap, y_graph, col_width, block_height, plt_values, "PLT")
 
-        # DIFF (scatter)
         if diff_groups:
             self._draw_scatter(
                 x0 + (col_width + gap) * 2,
@@ -599,7 +646,6 @@ class InformeCanvas:
                 baso=False,
             )
 
-        # BASO (scatter)
         if baso_groups:
             self._draw_scatter(
                 x0 + (col_width + gap) * 3,
@@ -612,14 +658,15 @@ class InformeCanvas:
             )
 
         self.y_current = y_graph - 30
+        return True
 
-    # ----------------------------- FOOTER -----------------------------
+    # ----------------------------- FOOTER (SOLO PÁGINA ACTUAL) -----------------------------
     def _draw_footer(self):
 
         # Línea divisoria
         self.c.setStrokeColor(colors.gray)
         self.c.setLineWidth(0.4)
-        self.c.line(self.left, 60, self.right, 60)
+        self.c.line(self.left, self.MARGIN_BOTTOM, self.right, self.MARGIN_BOTTOM)
 
         # Disclaimer
         self.c.setFont("Helvetica", 7)
@@ -632,26 +679,33 @@ class InformeCanvas:
             "La fecha de nacimiento corresponde a la información entregada por el paciente o el laboratorio remitente."
         )
 
-        self.c.drawCentredString(self.width / 2, 92, disclaimer_1)
-        self.c.drawCentredString(self.width / 2, 82, disclaimer_2)
+        self.c.drawCentredString(self.width / 2, self.MARGIN_BOTTOM + 32, disclaimer_1)
+        self.c.drawCentredString(self.width / 2, self.MARGIN_BOTTOM + 22, disclaimer_2)
 
-        # Número de página (por ahora fijo 1 de 1)
+        # Número de página: SOLAMENTE EL NÚMERO ACTUAL (X), ya que Y es imposible.
         self.c.setFont("Helvetica", 7)
         self.c.setFillColor(colors.gray)
-        self.c.drawString(self.left, 40, f"Página {self.page_number} de 1")
+        
+        page_text = f"Página {self.page_number}"
+        
+        self.c.drawString(self.left, self.MARGIN_BOTTOM - 20, page_text) 
 
-    # ----------------------------- GENERAR REPORTE COMPLETO ------------------------
+
+    # ----------------------------- GENERAR REPORTE COMPLETO (FINAL ESTABLE) ------------------------
     def generate_report(self):
+        
+        # Eliminamos beginPage() y setPageNumber()
+        
         self._draw_header()
         self._draw_patient_and_order_data()
         self._draw_results()
-        # Gráficas del equipo
-        self._draw_graphs_section()
+        
+        # Aseguramos el footer para la última página
         self._draw_footer()
-        self.c.showPage()
+        
         self.c.save()
 
-# --- VISTA DE DJANGO ---
+# --- VISTA DE DJANGO (Sin cambios) ---
 
 @login_required
 def imprimir_informe(request, orden_id):

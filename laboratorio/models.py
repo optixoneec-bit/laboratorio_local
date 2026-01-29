@@ -148,10 +148,12 @@ class Resultado(models.Model):
     creado = models.DateTimeField(auto_now_add=True)
     modificado = models.DateTimeField(auto_now=True)
     verificado = models.BooleanField(default=False)
+    orden_equipo = models.PositiveIntegerField(default=0, db_index=True)
 
 
-    class Meta:
-        ordering = ['orden_examen', 'parametro']
+class Meta:
+    ordering = ['orden_examen', 'orden_equipo', 'id']
+
 
     def __str__(self):
         return f"{self.parametro} ({self.valor or ''})"
