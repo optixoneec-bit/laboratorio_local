@@ -14,7 +14,7 @@ from io import BytesIO
 from django.template.loader import render_to_string # NECESARIA
 from collections import defaultdict # NECESARIA
 from datetime import date
-from weasyprint import HTML, CSS # NECESARIA
+#from weasyprint import HTML, CSS # NECESARIA
 from reportlab.graphics.barcode import code128
 from django.core.files.base import ContentFile
 

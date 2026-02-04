@@ -6,6 +6,7 @@ from django.contrib.auth.models import User, Group, Permission
 from django.http import JsonResponse
 from django.contrib.contenttypes.models import ContentType
 from django.views.decorators.http import require_POST
+from functools import wraps, lru_cache
 
 from .listener_thread import start_listener, stop_listener, status_listener
 from .models import HL7Mensaje, ConfigGeneral, Equipo, EquipoMapeo
@@ -26,6 +27,7 @@ def requiere_modulo(codename):
     El permiso se crea automáticamente si no existe, asociado a ConfigGeneral.
     """
     def decorator(view_func):
+        @wraps(view_func)
         def _wrapped(request, *args, **kwargs):
             if not request.user.is_authenticated:
                 from django.contrib.auth.views import redirect_to_login
@@ -317,6 +319,7 @@ MODULOS_DEFINIDOS = [
 ]
 
 
+@lru_cache(maxsize=1)
 def _get_permisos_modulos():
     """
     Crea (si no existen) y devuelve un dict {codigo: Permission}
@@ -397,13 +400,29 @@ def grupo_editar(request, pk=None):
 
             # actualizar sólo permisos de módulos definidos
             seleccionados_codigos = request.POST.getlist('modulos')
-            # quitar todos los permisos de módulo actuales
-            grupo.permissions.remove(*permisos_mod.values())
-            # agregar los seleccionados
+
+            # Evitar que te bloquees: si estás editando un rol al que perteneces,
+            # forzamos que conserve acceso a Configuración (a menos que seas superuser).
+            if (not request.user.is_superuser) and (grupo is not None) and request.user.groups.filter(id=grupo.id).exists():
+                if 'mod_configuracion' not in seleccionados_codigos:
+                    seleccionados_codigos.append('mod_configuracion')
+                    messages.warning(request, 'No puedes quitarte el acceso a Configuración desde tu propio rol. Se mantuvo habilitado.')
+
+            # Preservar permisos NO relacionados a módulos y actualizar SOLO los de módulos definidos
+            mod_perm_ids = [p.id for p in permisos_mod.values()]
+            permisos_a_conservar = list(grupo.permissions.exclude(id__in=mod_perm_ids))
+
+            permisos_seleccionados = []
             for code in seleccionados_codigos:
                 perm = permisos_mod.get(code)
                 if perm:
-                    grupo.permissions.add(perm)
+                    permisos_seleccionados.append(perm)
+
+            grupo.permissions.set(permisos_a_conservar + permisos_seleccionados)
+
+            # limpiar caché de permisos del usuario en sesión (Django cachea permisos)
+            if hasattr(request.user, '_perm_cache'):
+                del request.user._perm_cache
 
             messages.success(request, 'Rol guardado correctamente.')
             return redirect('configuracion:roles_dashboard')
@@ -447,6 +466,13 @@ def usuario_editar_roles(request, user_id):
         form = UsuarioRolesForm(request.POST, instance=usuario)
         if form.is_valid():
             form.save()
+
+            # limpiar caché de permisos (Django cachea permisos por-request)
+            if hasattr(usuario, '_perm_cache'):
+                del usuario._perm_cache
+            if hasattr(request.user, '_perm_cache'):
+                del request.user._perm_cache
+
             messages.success(request, 'Roles y permisos actualizados correctamente.')
             return redirect('configuracion:roles_dashboard')
         messages.error(request, 'Revisa los datos del formulario.')

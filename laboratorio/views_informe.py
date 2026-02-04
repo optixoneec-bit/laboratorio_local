@@ -75,6 +75,23 @@ class InformeCanvas:
         num_lines = len(textobject.getLines())
         return y_initial - (num_lines * self.line_height)
 
+    def _norm_area(self, s):
+        """
+        Normaliza el texto de área para comparar sin depender de mayúsculas/acentos.
+        """
+        if not s:
+            return ""
+        t = str(s).strip().upper()
+        # normalización simple de acentos comunes
+        t = (t.replace("Á", "A")
+               .replace("É", "E")
+               .replace("Í", "I")
+               .replace("Ó", "O")
+               .replace("Ú", "U")
+               .replace("Ü", "U")
+               .replace("Ñ", "N"))
+        return t
+
     # ----------------------------- CABECERA -----------------------------
     def _draw_header(self):
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -201,12 +218,12 @@ class InformeCanvas:
 
         self._draw_results_header()
 
-        # Obtener exámenes ordenados por área y nombre
+        # Obtener exámenes (no dependemos del order_by por área para la prioridad)
         examenes = (
             OrdenExamen.objects.filter(orden=self.orden)
             .select_related("examen")
             .prefetch_related("resultados")
-            .order_by("examen__area", "examen__nombre")
+            .order_by("examen__nombre")
         )
 
         # Agrupar por área
@@ -215,8 +232,30 @@ class InformeCanvas:
             area = ex.examen.area or "OTROS"
             grupos.setdefault(area, []).append(ex)
 
-        # Dibujar área -> examen -> parámetros
-        for area, examenes_area in grupos.items():
+        # Ordenar áreas: Hematología primero, luego Coagulación, luego el resto (A-Z)
+        prioridad = {
+            "HEMATOLOGIA": 0,
+            "HEMATOLOGÍA": 0,
+            "HEMATOLOGIA Y COAGULACION": 0,
+            "HEMATOLOGÍA Y COAGULACIÓN": 0,
+            "COAGULACION": 1,
+            "COAGULACIÓN": 1,
+        }
+
+        def area_sort_key(area_name):
+            norm = self._norm_area(area_name)
+            pr = prioridad.get(norm, 2)
+            return (pr, norm)
+
+        areas_ordenadas = sorted(grupos.keys(), key=area_sort_key)
+
+        # Queremos: Hematología/Coagulación primero Y gráficas inmediatamente después
+        graficas_ya_dibujadas = False
+        areas_prioritarias_norm = {"HEMATOLOGIA", "COAGULACION"}
+
+        for area in areas_ordenadas:
+            examenes_area = grupos[area]
+
             # Título del área
             self.c.setFont("Helvetica-Bold", 9)
             titulo = area
@@ -260,6 +299,30 @@ class InformeCanvas:
                 self.y_current -= 6  # espacio después del examen
 
             self.y_current -= 10  # espacio después del área
+
+            # Si ya terminamos de dibujar las áreas prioritarias, ponemos las gráficas inmediatamente
+            # (solo una vez, y solo después de Hematología/Coagulación).
+            norm_area = self._norm_area(area)
+            if (not graficas_ya_dibujadas) and (norm_area in areas_prioritarias_norm):
+                # verificamos si aún queda la otra área prioritaria por dibujar:
+                # Dibujamos gráficas después de Coagulación si existe, o después de Hematología si no existe Coagulación.
+                restantes_prioritarias = []
+                for a2 in areas_ordenadas:
+                    if self._norm_area(a2) in areas_prioritarias_norm and a2 != area:
+                        # si esa área está en la lista y aún no la hemos iterado, estaría después en el loop
+                        restantes_prioritarias.append(a2)
+
+                # Si NO hay otra prioritaria pendiente, entonces este es el punto correcto para las gráficas
+                # o si la siguiente prioritaria NO existe.
+                # (en la práctica: si hay COAGULACION, la gráfica sale después de COAGULACION;
+                # si no hay COAGULACION, sale después de HEMATOLOGIA)
+                if not restantes_prioritarias or (norm_area == "COAGULACION"):
+                    self._draw_graphs_section()
+                    graficas_ya_dibujadas = True
+
+        # Si no se dibujaron dentro del bloque prioritario pero existen HL7, no hacemos nada aquí;
+        # el objetivo pedido es que vayan primero con hematología/coagulación.
+        # Si no hubo esas áreas, entonces se quedan sin forzar.
 
     # ----------------------------- HL7 → GRÁFICAS -----------------------------
     def _get_hl7_message_for_order(self):
@@ -645,8 +708,6 @@ class InformeCanvas:
         self._draw_header()
         self._draw_patient_and_order_data()
         self._draw_results()
-        # Gráficas del equipo
-        self._draw_graphs_section()
         self._draw_footer()
         self.c.showPage()
         self.c.save()

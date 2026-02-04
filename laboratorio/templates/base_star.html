@@ -34,6 +34,20 @@
     .brand-inline .ai{font-weight:800;font-size:1.35rem;color:#00BCD4;letter-spacing:0.5px;}
 
     .content-wrapper{padding:24px 24px 48px;}
+
+    /* Logout como link (pero POST) */
+    .logout-link-btn{
+      background: none;
+      border: none;
+      padding: 0;
+      margin: 0;
+      color: inherit;
+      cursor: pointer;
+      font: inherit;
+    }
+    .logout-link-btn:hover{
+      text-decoration: underline;
+    }
   </style>
 
   {% block extra_head %}{% endblock %}
@@ -54,8 +68,13 @@
           <li class="nav-item d-none d-lg-block">
             <span class="nav-link">Hola, {{ request.user.first_name|default:request.user.username }}</span>
           </li>
+
+          <!-- LOGOUT (POST) -->
           <li class="nav-item nav-logout d-none d-lg-block">
-            <a class="nav-link" href="{% url 'logout' %}">Salir</a>
+            <form method="post" action="{% url 'logout' %}" style="display:inline;">
+              {% csrf_token %}
+              <button type="submit" class="nav-link logout-link-btn">Salir</button>
+            </form>
           </li>
           {% endif %}
         </ul>
@@ -69,68 +88,89 @@
         <ul class="nav">
           <li class="nav-item nav-category">Navegación</li>
 
+          {% if request.user.is_superuser or perms.configuracion.mod_inicio %}
           <li class="nav-item">
             <a class="nav-link" href="{% url 'lista_ordenes' %}">
               <i class="mdi mdi-home-outline menu-icon"></i>
               <span class="menu-title">Inicio</span>
             </a>
           </li>
+          {% endif %}
 
+          {% if request.user.is_superuser or perms.configuracion.mod_nueva %}
           <li class="nav-item">
             <a class="nav-link" href="{% url 'nueva_orden' %}">
               <i class="mdi mdi-file-document-edit-outline menu-icon"></i>
               <span class="menu-title">Nueva</span>
             </a>
           </li>
+          {% endif %}
 
+          {% if request.user.is_superuser or perms.configuracion.mod_catalogo %}
           <li class="nav-item">
             <a class="nav-link" href="{% url 'catalogo_examenes' %}">
               <i class="mdi mdi-book-open-page-variant-outline menu-icon"></i>
               <span class="menu-title">Catálogo</span>
             </a>
           </li>
+          {% endif %}
 
+          {% if request.user.is_superuser or perms.configuracion.mod_catalogo_tec %}
           <li class="nav-item">
             <a class="nav-link" href="{% url 'catalogo_tecnico' %}">
               <i class="mdi mdi-flask-outline menu-icon"></i>
               <span class="menu-title">Catálogo Téc.</span>
             </a>
           </li>
+          {% endif %}
 
+          {% if request.user.is_superuser or perms.configuracion.mod_resultados %}
           <li class="nav-item">
             <a class="nav-link" href="{% url 'resultados_lista' %}">
               <i class="mdi mdi-clipboard-text-outline menu-icon"></i>
               <span class="menu-title">Resultados</span>
             </a>
           </li>
+          {% endif %}
 
+          {% if request.user.is_superuser or perms.configuracion.mod_validacion %}
           <li class="nav-item">
             <a class="nav-link" href="{% url 'validacion_lista' %}">
               <i class="mdi mdi-check-decagram-outline menu-icon"></i>
               <span class="menu-title">Validación</span>
             </a>
           </li>
+          {% endif %}
 
+          {% if request.user.is_superuser or perms.configuracion.mod_precios %}
           <li class="nav-item">
             <a class="nav-link" href="#">
               <i class="mdi mdi-cash-multiple menu-icon"></i>
               <span class="menu-title">Precios</span>
             </a>
           </li>
+          {% endif %}
 
           <li class="nav-item nav-category">Sistema</li>
+
+          {% if request.user.is_superuser or perms.configuracion.mod_pacientes %}
           <li class="nav-item">
             <a class="nav-link" href="{% url 'pacientes_lista' %}">
               <i class="mdi mdi-account-multiple-outline menu-icon"></i>
               <span class="menu-title">Pacientes</span>
             </a>
           </li>
+          {% endif %}
+
+          {% if request.user.is_superuser or perms.configuracion.mod_configuracion %}
           <li class="nav-item">
             <a class="nav-link" href="{% url 'configuracion:dashboard' %}">
               <i class="mdi mdi-cog-outline menu-icon"></i>
               <span class="menu-title">Configuración</span>
             </a>
           </li>
+          {% endif %}
+
         </ul>
       </nav>
       <!-- /SIDEBAR -->
