@@ -3,6 +3,7 @@
 import socket
 import threading
 import traceback
+from datetime import datetime
 
 from django.core.files.base import ContentFile
 from django.db import models
@@ -21,6 +22,53 @@ START_BLOCK = b"\x0b"
 END_BLOCK = b"\x1c"
 
 
+def construir_respuesta_consulta(sample_id):
+    """
+    Busca la orden en Django y construye un mensaje HL7 (ADR^A19)
+    ajustado a los modelos reales y al equipo Genrui KT-6610.
+    """
+    try:
+        from laboratorio.models import Orden 
+        # Buscamos la orden por el numero_orden que envió el equipo
+        orden = Orden.objects.filter(numero_orden=sample_id).select_related('paciente').first()
+        now = datetime.now().strftime("%Y%m%d%H%M%S")
+        
+        if not orden or not orden.paciente:
+            # Si no hay orden, respondemos un error de registro no encontrado
+            msh = f"MSH|^~\\&|LAB|FAC|||{now}||ADR^A19|1|P|2.3.1"
+            msa = f"MSA|AE|Orden {sample_id} no encontrada"
+            return f"{msh}\r{msa}\r".encode("utf-8")
+
+        p = orden.paciente
+        
+        # AJUSTE A TU MODELO: Usamos nombre_completo
+        # El equipo Genrui espera Apellido^Nombre, como tú tienes un solo campo,
+        # lo enviamos completo en la posición del apellido para que lo muestre bien.
+        nombre_hl7 = (p.nombre_completo or "PACIENTE SIN NOMBRE").upper()
+        
+        # AJUSTE DE SEXO: Tu modelo guarda 'M'/'F' (Masculino/Femenino)
+        # El equipo espera M, F o U.
+        sexo_hl7 = p.sexo if p.sexo in ['M', 'F'] else 'U'
+        
+        # AJUSTE DE FECHA: Formato YYYYMMDD
+        f_nac = p.fecha_nacimiento.strftime("%Y%m%d") if p.fecha_nacimiento else ""
+
+        # Construcción de la respuesta según manual Genrui
+        msh = f"MSH|^~\\&|LAB|FAC|||{now}||ADR^A19|1|P|2.3.1"
+        msa = "MSA|AA|1"
+        # El segmento QRD debe repetir el ID de muestra que el equipo pidió
+        qrd = f"QRD|{now}|R|I|Q100|||1^RD|{sample_id}|OTH"
+        # Segmento PID con tu campo nombre_completo y documento_identidad
+        pid = f"PID|1||{p.documento_identidad}||{nombre_hl7}||{f_nac}|{sexo_hl7}"
+        
+        hl7_resp = f"{msh}\r{msa}\r{qrd}\r{pid}\r"
+        return hl7_resp.encode("utf-8")
+        
+    except Exception as e:
+        # Esto saldrá en tu consola de Django si algo falla internamente
+        print(f"DEBUG - Error en construir_respuesta_consulta: {e}")
+        return b"MSH|^~\\&|LAB|FAC|||2026||ACK^Q02|1|P|2.3.1\rMSA|AE|Error Interno en Servidor\r"
+
 def parse_hl7(raw):
     try:
         text = raw.decode(errors="ignore")
@@ -29,6 +77,7 @@ def parse_hl7(raw):
         msh = next((l for l in lines if l.startswith("MSH")), "")
         pid = next((l for l in lines if l.startswith("PID")), "")
         obr = next((l for l in lines if l.startswith("OBR")), "")
+        qrd = next((l for l in lines if l.startswith("QRD")), "")
         obx = "\n".join([l for l in lines if l.startswith("OBX")])
 
         sample_id = ""
@@ -41,6 +90,9 @@ def parse_hl7(raw):
                 # y está llegando bien por aquí (en tu BD ya vimos sample_id lleno).
                 sample_id = parts[3] if len(parts) > 3 else ""
                 exam_codes = parts[4] if len(parts) > 4 else ""
+            elif qrd:
+                parts = qrd.split("|")
+                sample_id = parts[8] if len(parts) > 8 else ""
         except Exception:
             pass
 
@@ -165,7 +217,6 @@ def _extract_obx_items(hl7_raw_text: str):
         pass
 
     return items
-
 
 
 def _is_graph_or_binary_obx(item):
@@ -370,7 +421,6 @@ def _auto_cargar_resultados_desde_hl7(msg: HL7Mensaje):
     }
 
 
-
 def guardar_imagen_desde_obx(msg: HL7Mensaje, obx_linea: str) -> None:
     """
     Guarda una imagen PNG proveniente de un OBX tipo ED.
@@ -383,11 +433,6 @@ def guardar_imagen_desde_obx(msg: HL7Mensaje, obx_linea: str) -> None:
         secuencia = (partes[1] or "").strip()
         codigo = (partes[3] or "").strip()
         valor_ed = (partes[5] or "").strip()
-
-        # ED components
-        comp = valor_ed.split("^")
-        if len(comp) < 5:
-            return
 
         # Decodificar RAW→PNG usando el decoder Genrui
         png_bytes = GenruiImageDecoder.decode_hl7_raw(valor_ed)
@@ -410,6 +455,7 @@ def listener_loop():
     global LISTENER_RUNNING
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
     try:
         server_socket.bind(("0.0.0.0", PORT))
@@ -429,7 +475,6 @@ def listener_loop():
                     buffer += chunk
 
                     if END_BLOCK in buffer:
-
                         start = buffer.find(START_BLOCK) + 1
                         end = buffer.find(END_BLOCK)
                         hl7_message = buffer[start:end]
@@ -439,45 +484,39 @@ def listener_loop():
                         msg = HL7Mensaje.objects.create(
                             ip_equipo=addr[0],
                             mensaje_raw=hl7_message.decode(errors="ignore"),
-                            msh=msh,
-                            pid=pid,
-                            obr=obr,
-                            obx=obx,
-                            sample_id=sample_id,
-                            exam_codes=exam_codes,
+                            msh=msh, pid=pid, obr=obr, obx=obx,
+                            sample_id=sample_id, exam_codes=exam_codes,
                             estado="pendiente",
                         )
 
-                        # Procesar imágenes (ED)
-                        if obx:
-                            for linea in obx.split("\n"):
-                                if "|ED|" in linea:
-                                    guardar_imagen_desde_obx(msg, linea)
+                        if "QRY" in msh:
+                            respuesta = construir_respuesta_consulta(sample_id)
+                            conn.send(START_BLOCK + respuesta + END_BLOCK + b"\x0d")
+                        else:
+                            if obx:
+                                for linea in obx.split("\n"):
+                                    if "|ED|" in linea:
+                                        guardar_imagen_desde_obx(msg, linea)
 
-                        # ✅ AUTO-CARGA A BD (RESULTADOS) SIN BOTÓN
-                        try:
-                            _auto_cargar_resultados_desde_hl7(msg)
-                        except Exception:
-                            traceback.print_exc()
+                            try:
+                                _auto_cargar_resultados_desde_hl7(msg)
+                            except Exception:
+                                traceback.print_exc()
 
-                        # ACK
-                        conn.send(START_BLOCK + b"ACK|AA|\x1c\x0d")
+                            conn.send(START_BLOCK + b"ACK|AA|\x1c\x0d")
+                        
                         buffer = b""
 
                 conn.close()
-
             except Exception:
                 traceback.print_exc()
-
     except Exception:
         traceback.print_exc()
-
     finally:
         try:
             server_socket.close()
-        except Exception:
+        except:
             pass
-
         LISTENER_RUNNING = False
 
 
