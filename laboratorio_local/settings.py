@@ -4,6 +4,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'django-insecure-lab-local'
 DEBUG = True
+CSRF_TRUSTED_ORIGINS = ['https://laboratorio.confianzamedica.com']
+
 ALLOWED_HOSTS = ['*']
 
 INSTALLED_APPS = [

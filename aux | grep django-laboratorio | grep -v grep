@@ -1,0 +1,17 @@
+[0;1;34m# ]8;;file://servidor/etc/systemd/system/django-laboratorio.service\/etc/systemd/system/django-laboratorio.service]8;;\[0m
+[0;1;36m[Unit][0m
+[0;1;32mDescription=[0mDjango - laboratorio_local
+[0;1;32mAfter=[0mnetwork-online.target
+[0;1;32mWants=[0mnetwork-online.target
+[0;1;38:5:245m[0m
+[0;1;36m[Service][0m
+[0;1;32mUser=[0mpi
+[0;1;32mGroup=[0mpi
+[0;1;32mWorkingDirectory=[0m/datos/laboratorio_local
+[0;1;32mEnvironment=[0mPYTHONUNBUFFERED=1
+[0;1;32mExecStart=[0m/datos/laboratorio_local/venv/bin/python /datos/laboratorio_local/manage.py runserver 0.0.0.0:8000
+[0;1;32mRestart=[0malways
+[0;1;32mRestartSec=[0m3
+[0;1;38:5:245m[0m
+[0;1;36m[Install][0m
+[0;1;32mWantedBy=[0mmulti-user.target
