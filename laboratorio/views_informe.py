@@ -301,28 +301,17 @@ class InformeCanvas:
             self.y_current -= 10  # espacio después del área
 
             # Si ya terminamos de dibujar las áreas prioritarias, ponemos las gráficas inmediatamente
-            # (solo una vez, y solo después de Hematología/Coagulación).
             norm_area = self._norm_area(area)
             if (not graficas_ya_dibujadas) and (norm_area in areas_prioritarias_norm):
-                # verificamos si aún queda la otra área prioritaria por dibujar:
-                # Dibujamos gráficas después de Coagulación si existe, o después de Hematología si no existe Coagulación.
+                # Si NO hay otra prioritaria pendiente, entonces este es el punto correcto para las gráficas
                 restantes_prioritarias = []
                 for a2 in areas_ordenadas:
                     if self._norm_area(a2) in areas_prioritarias_norm and a2 != area:
-                        # si esa área está en la lista y aún no la hemos iterado, estaría después en el loop
                         restantes_prioritarias.append(a2)
 
-                # Si NO hay otra prioritaria pendiente, entonces este es el punto correcto para las gráficas
-                # o si la siguiente prioritaria NO existe.
-                # (en la práctica: si hay COAGULACION, la gráfica sale después de COAGULACION;
-                # si no hay COAGULACION, sale después de HEMATOLOGIA)
                 if not restantes_prioritarias or (norm_area == "COAGULACION"):
                     self._draw_graphs_section()
                     graficas_ya_dibujadas = True
-
-        # Si no se dibujaron dentro del bloque prioritario pero existen HL7, no hacemos nada aquí;
-        # el objetivo pedido es que vayan primero con hematología/coagulación.
-        # Si no hubo esas áreas, entonces se quedan sin forzar.
 
     # ----------------------------- HL7 → GRÁFICAS -----------------------------
     def _get_hl7_message_for_order(self):
@@ -334,21 +323,46 @@ class InformeCanvas:
         except Exception:
             return None
 
-        sample_candidates = []
-        if getattr(self.orden, "numero_orden", None):
-            sample_candidates.append(str(self.orden.numero_orden))
-        sample_candidates.append(str(self.orden.id))
+        numero_orden = ""
+        if getattr(self.orden, "numero_orden", None) is not None:
+            numero_orden = str(self.orden.numero_orden).strip()
 
+        orden_id = str(self.orden.id).strip()
+
+        # Candidatos comunes (exactos)
+        candidates = []
+        if numero_orden:
+            candidates.append(numero_orden)
+            # sin ceros a la izquierda (muy común en equipos)
+            candidates.append(numero_orden.lstrip("0") or numero_orden)
+        candidates.append(orden_id)
+
+        # 1) Intento exacto (rápido)
         try:
             msg = (
                 HL7Mensaje.objects
-                .filter(sample_id__in=sample_candidates)
+                .filter(sample_id__in=candidates)
                 .order_by("-id")
                 .first()
             )
-            return msg
+            if msg:
+                return msg
         except Exception:
-            return None
+            pass
+
+        # 2) Intento flexible (si el sample_id tiene prefijos/sufijos)
+        #    Ej: "ORD-000123", "000123A", "123/2026", etc.
+        try:
+            qs = HL7Mensaje.objects.all()
+            if numero_orden:
+                qs = qs.filter(sample_id__icontains=numero_orden)
+                msg = qs.order_by("-id").first()
+                if msg:
+                    return msg
+        except Exception:
+            pass
+
+        return None
 
     def _parse_hist_binary(self, raw):
         """
@@ -357,12 +371,23 @@ class InformeCanvas:
         if not raw:
             return None
         try:
-            parts = str(raw).split(";")
+            s = str(raw).strip()
+            if not s:
+                return None
+
+            # algunos equipos mandan con '^' o ',' después del color
+            # normalizamos a formato "color;serie"
+            if ";" not in s:
+                # si viene "16711680,0,0,1,2" lo convertimos a "16711680;0,0,1,2"
+                m = re.match(r"^(\d+)[,\^](.+)$", s)
+                if m:
+                    s = f"{m.group(1)};{m.group(2)}"
+
+            parts = s.split(";")
             if len(parts) < 2:
                 return None
-            values = [
-                int(x) for x in parts[1].split(",") if x.strip() != ""
-            ]
+
+            values = [int(x) for x in parts[1].split(",") if x.strip() != ""]
             if not values:
                 return None
             return values
@@ -580,7 +605,7 @@ class InformeCanvas:
         if not msg:
             return
 
-        raw = msg.mensaje_raw or ""
+        raw = getattr(msg, "mensaje_raw", None) or ""
         if not raw:
             return
 
@@ -589,26 +614,40 @@ class InformeCanvas:
         diff_raw = None
         baso_raw = None
 
+        def norm_obs_id(s):
+            t = (s or "").strip()
+            # colapsar espacios y hacer matching más robusto
+            t = re.sub(r"\s+", " ", t)
+            t = t.upper()
+            return t
+
         # Extraer las cadenas Binary desde el HL7
         for line in str(raw).splitlines():
             line = line.strip()
             if not line.startswith("OBX|"):
                 continue
+
             parts = line.split("|")
             if len(parts) < 6:
                 continue
-            obs_id = parts[3] or ""
-            val = (parts[5] or "").strip()
+
+            obs_id_raw = parts[3] or ""
+            obs_id = norm_obs_id(obs_id_raw)
+
+            # OBX-5 puede venir con más '|' si el emisor no escapa correctamente.
+            val = ("|".join(parts[5:]) if len(parts) > 5 else "").strip()
             if not val:
                 continue
 
-            if "RBC Histogram.Binary" in obs_id:
+            # Matching flexible por palabras clave
+            # (soporta variantes con/ sin espacios / componentes ^)
+            if ("RBC" in obs_id and "HISTOGRAM" in obs_id and "BINARY" in obs_id):
                 rbc_hist_raw = val
-            elif "PLT Histogram.Binary" in obs_id:
+            elif ("PLT" in obs_id and "HISTOGRAM" in obs_id and "BINARY" in obs_id):
                 plt_hist_raw = val
-            elif "DIFFScatter.Binary" in obs_id or "DIFF Scatter.Binary" in obs_id:
+            elif ("DIFF" in obs_id and "SCATTER" in obs_id and "BINARY" in obs_id):
                 diff_raw = val
-            elif "BASOScatter.Binary" in obs_id or "BASO Scatter.Binary" in obs_id:
+            elif ("BASO" in obs_id and "SCATTER" in obs_id and "BINARY" in obs_id):
                 baso_raw = val
 
         if not any([rbc_hist_raw, plt_hist_raw, diff_raw, baso_raw]):

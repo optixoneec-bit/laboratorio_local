@@ -1,8 +1,6 @@
 # Django
 __pycache__/
 *.py[cod]
-*.sqlite3
-db.sqlite3
 
 # Virtual environments
 .env
@@ -41,3 +39,7 @@ Desktop.ini
 staticfiles/
 media/
 __pycache__/
+
+# --- auto backups / saves ---
+*.BACKUP
+*.save
