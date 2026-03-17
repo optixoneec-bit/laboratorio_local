@@ -1,9 +1,17 @@
-from django.urls import path
+from django.urls import path, include
 from . import views
 from .views_informe import imprimir_informe   # ✅ IMPORTE CORRECTO Y FINAL
 
 
 urlpatterns = [
+    # -----------------------------
+    # Rutas de Informes (PDF con WeasyPrint y ReportLab)
+    # -----------------------------
+    path('informe_resultados/<int:orden_id>/', views.informe_resultados, name='informe_resultados'),
+    path('informe_resultados/<int:orden_id>/pdf/', views.informe_resultados_pdf, name='informe_resultados_pdf'),
+    path('ordenes/<int:orden_id>/imprimir/', imprimir_informe, name='imprimir_informe'),
+    path('ordenes/<int:orden_id>/pdf/', imprimir_informe, name='orden_pdf'),
+
     # -----------------------------
     # Órdenes
     # -----------------------------
@@ -11,17 +19,6 @@ urlpatterns = [
     path('ordenes/nueva/', views.nueva_orden, name='nueva_orden'),
     path('ordenes/<int:orden_id>/', views.detalle_orden, name='detalle_orden'),
     path('ordenes/<int:orden_id>/resultados/', views.resultados_orden, name='resultados_orden'),
-    path('ordenes/<int:orden_id>/pdf/', views.orden_pdf, name='orden_pdf'),
-
-    # ❌ SE ELIMINAN rutas incorrectas/duplicadas que NO existen en tu proyecto actual:
-    # path('ordenes/<int:orden_id>/informe/', views.informe_resultados, ...)
-    # path('ordenes/<int:orden_id>/informe/pdf/', views.informe_resultados_pdf, ...)
-    # path("ordenes/<int:orden_id>/informe/pdf/", views.informe_resultados_pdf, ...)
-
-    # -----------------------------
-    # NUEVA RUTA OFICIAL PARA INFORME PDF
-    # -----------------------------
-    path("ordenes/<int:orden_id>/imprimir/", imprimir_informe, name="imprimir_informe"),
 
     # -----------------------------
     # Pacientes (AJAX)
@@ -85,6 +82,8 @@ urlpatterns = [
     # Pacientes
     # -----------------------------
     path('pacientes/', views.pacientes_lista, name='pacientes_lista'),
+    path('pacientes/dashboard/', views.pacientes_dashboard, name='pacientes_dashboard'),
+    path('paciente/<int:paciente_id>/historial/', views.paciente_historial, name='paciente_historial'),
     path('paciente/<int:paciente_id>/editar_ajax/', views.paciente_editar_ajax, name='paciente_editar_ajax'),
     path('paciente/<int:paciente_id>/actualizar_ajax/', views.paciente_actualizar_ajax, name='paciente_actualizar_ajax'),
     path('paciente/<int:paciente_id>/eliminar/', views.paciente_eliminar, name='paciente_eliminar'),
@@ -92,6 +91,18 @@ urlpatterns = [
 
     path('ordenes/<int:orden_id>/etiquetas/pdf/', views.orden_etiquetas_pdf, name='orden_etiquetas_pdf'),
 
+    # -----------------------------
+    # Simulador Virtual (sin autenticación)
+    # -----------------------------
+    path('simulador-virtual/', views.simulador_virtual, name='simulador_virtual'),
 
-
+    # -----------------------------
+    # Proformas
+    # -----------------------------
+    path('proformas/', views.proforma_lista, name='proforma_lista'),
+    path('proformas/nueva/', views.proforma_nueva, name='proforma_nueva'),
+    path('proformas/<int:proforma_id>/pdf/', views.proforma_pdf, name='proforma_pdf'),
+    path('proformas/<int:proforma_id>/pdf-popup/', views.proforma_pdf_popup, name='proforma_pdf_popup'),
+    path('proformas/<int:proforma_id>/eliminar/', views.proforma_eliminar, name='proforma_eliminar'),
+    path('proformas/<int:proforma_id>/generar-orden/', views.proforma_generar_orden, name='proforma_generar_orden'),
 ]

@@ -1,8 +1,9 @@
 # laboratorio/views.py
 import os
-from datetime import date # Necesario para la función calculate_age
+from datetime import date, datetime
 from django.conf import settings
 from django.shortcuts import render, get_object_or_404, redirect
+from django.urls import reverse
 from django.http import JsonResponse, HttpResponseForbidden, HttpResponse, FileResponse
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
@@ -71,7 +72,7 @@ except Exception:
     pd = None
 
 
-from .models import Paciente, Orden, OrdenExamen, Resultado, Examen, ExamenParametro
+from .models import Paciente, Orden, OrdenExamen, Resultado, Examen, ExamenParametro, Proforma, ProformaExamen
 
 
 from io import BytesIO
@@ -167,11 +168,68 @@ def anular_validacion(request, resultado_id):
 
 @login_required
 def lista_ordenes(request):
+    from django.db.models import Count
+    from django.db.models.functions import TruncDate
+
     query = request.GET.get('q', '')
+    desde = request.GET.get('desde')
+    hasta = request.GET.get('hasta')
+
     ordenes = Orden.objects.all().order_by('-fecha')
     if query:
         ordenes = ordenes.filter(paciente__nombre_completo__icontains=query) | ordenes.filter(numero_orden__icontains=query)
-    return render(request, 'laboratorio/lista_ordenes.html', {'ordenes': ordenes, 'query': query})
+    
+    # Filtrar por fecha si se proporcionan
+    if desde:
+        ordenes = ordenes.filter(fecha__date__gte=desde)
+    if hasta:
+        ordenes = ordenes.filter(fecha__date__gte=hasta)
+
+    # --- Estadísticas para gráficos ---
+    # Órdenes por día (últimos 30 días)
+    from datetime import timedelta
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    orders_by_day = (
+        Orden.objects.filter(fecha__gte=thirty_days_ago)
+        .annotate(day=TruncDate('fecha'))
+        .values('day')
+        .annotate(count=Count('id'))
+        .order_by('day')
+    )
+    chart_daily = {
+        'labels': [o['day'].strftime('%d/%m') if o['day'] else '' for o in orders_by_day],
+        'data': [o['count'] for o in orders_by_day]
+    }
+
+    # Distribución por estado
+    orders_by_status = (
+        Orden.objects.values('estado')
+        .annotate(count=Count('id'))
+        .order_by('-count')
+    )
+    chart_status = {
+        'labels': [o['estado'] or 'Sin estado' for o in orders_by_status],
+        'data': [o['count'] for o in orders_by_status]
+    }
+
+    # --- KPIs para las tarjetas ---
+    kpis = {
+        'total': Orden.objects.count(),
+        'pendiente': Orden.objects.filter(estado='Pendiente').count(),
+        'en_proceso': Orden.objects.filter(estado='En proceso').count(),
+        'en_validacion': Orden.objects.filter(estado='En validación').count(),
+        'validado': Orden.objects.filter(estado='Validado').count(),
+    }
+
+    return render(request, 'laboratorio/lista_ordenes.html', {
+        'ordenes': ordenes,
+        'query': query,
+        'desde': desde or '',
+        'hasta': hasta or '',
+        'chart_daily': chart_daily,
+        'chart_status': chart_status,
+        'kpis': kpis,
+    })
 
 
 @login_required
@@ -556,6 +614,7 @@ def paciente_nuevo_ajax(request):
             'telefono': telefono,
             'email': email,
             'direccion': direccion,
+            'fecha_registro': date.today(),
             'creado_por': request.user
         }
     )
@@ -1316,8 +1375,40 @@ def pacientes_lista(request):
     """
     Muestra todos los pacientes registrados en el sistema (solo lectura).
     """
+    from django.utils import timezone
+    from datetime import timedelta
+    
     pacientes = Paciente.objects.all().order_by("-creado_en")
-    return render(request, "laboratorio/pacientes_lista.html", {"pacientes": pacientes})
+    
+    # KPIs para el dashboard
+    total_pacientes = Paciente.objects.count()
+    
+    # Pacientes nuevos este mes
+    ahora = timezone.now()
+    inicio_mes = ahora.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    nuevos_mes = Paciente.objects.filter(creado_en__gte=inicio_mes).count()
+    
+    # Órdenes pendientes (estado Pendiente o En proceso)
+    ordenes_pendientes = Orden.objects.filter(estado__in=['Pendiente', 'En proceso']).count()
+    
+    # Resultados pendientes: OrdenExamen con estado Pendiente que tienen resultados pendientes de validar
+    from django.db.models import Count
+    resultados_pendientes = OrdenExamen.objects.filter(
+        estado='Pendiente'
+    ).exclude(
+        resultados__isnull=False
+    ).count()
+    # También contar los que tienen resultados pero no validados
+    resultados_sin_validar = Resultado.objects.filter(validado=False).count()
+    resultados_pendientes = max(resultados_pendientes, resultados_sin_validar)
+    
+    return render(request, "laboratorio/pacientes_lista.html", {
+        "pacientes": pacientes,
+        "total_pacientes": total_pacientes,
+        "nuevos_mes": nuevos_mes,
+        "ordenes_pendientes": ordenes_pendientes,
+        "resultados_pendientes": resultados_pendientes,
+    })
 
 @login_required
 @require_http_methods(["GET"])
@@ -1442,6 +1533,24 @@ def informe_resultados_pdf(request, orden_id):
         for r in oe.resultados.all():
             grouped_data[area][nombre_examen].append(r)
 
+    # Eliminar resultados duplicados: mantener solo el primero de cada parámetro único
+    # Esto evita mostrar "Resultado generado" múltiples veces
+    for area in grouped_data:
+        for examen in grouped_data[area]:
+            seen_params = set()
+            unique_results = []
+            for r in grouped_data[area][examen]:
+                # Usar el ID del resultado como identificador único
+                # Si el parámetro es igual, solo agregar uno
+                param_key = (r.parametro, r.valor)
+                if param_key not in seen_params:
+                    seen_params.add(param_key)
+                    unique_results.append(r)
+            grouped_data[area][examen] = unique_results
+
+    # Convertir defaultdict a dict regular para el template
+    grouped_data = {k: dict(v) for k, v in grouped_data.items()}
+
     # =========================
     # VALIDADOR (último resultado validado)
     # =========================
@@ -1469,6 +1578,173 @@ def informe_resultados_pdf(request, orden_id):
     }
 
     # =========================
+    # EXTRAER DATOS DE GRÁFICAS (HISTOGRAMAS) DEL MENSAJE HL7
+    # =========================
+    import re
+    import base64
+    from io import BytesIO
+    import matplotlib
+    matplotlib.use('Agg')
+    import matplotlib.pyplot as plt
+
+    def parse_histogram_binary(raw):
+        """Extrae valores numéricos del formato histograma HL7."""
+        if not raw:
+            return None
+        try:
+            s = str(raw).strip()
+            s = s.replace("(", "").replace(")", "").replace("[", "").replace("]", "")
+            
+            values_str = None
+            if ";" in s:
+                parts = s.split(";")
+                if len(parts) >= 2:
+                    values_str = parts[1]
+            elif "," in s:
+                parts = s.split(",")
+                try:
+                    first_val = int(parts[0])
+                    if first_val > 65535:
+                        values_str = ",".join(parts[1:])
+                    else:
+                        values_str = s
+                except ValueError:
+                    values_str = s
+            else:
+                return None
+            
+            if not values_str:
+                return None
+            
+            values = []
+            for x in values_str.split(","):
+                x = x.strip()
+                if x:
+                    try:
+                        values.append(int(x))
+                    except:
+                        try:
+                            values.append(int(float(x)))
+                        except:
+                            continue
+            
+            return values if values else None
+        except Exception:
+            return None
+
+    def generate_histogram_base64(values, label, x_max=None):
+        """Genera un histograma como imagen base64."""
+        if not values or len(values) < 2:
+            return None
+        try:
+            fig, ax = plt.subplots(figsize=(6, 2), dpi=100)
+            fig.patch.set_facecolor('white')
+            ax.set_facecolor('white')
+            
+            x_vals = list(range(len(values)))
+            ax.fill_between(x_vals, values, color='#00CCFF', alpha=0.7)
+            ax.plot(x_vals, values, color='#0088CC', linewidth=0.8)
+            
+            ax.set_xlim(0, len(values) - 1)
+            max_val = max(values) if values else 1
+            ax.set_ylim(0, max_val * 1.1)
+            
+            ax.set_xticks([])
+            ax.set_yticks([])
+            
+            ax.spines['left'].set_visible(True)
+            ax.spines['left'].set_color('#333333')
+            ax.spines['bottom'].set_visible(True)
+            ax.spines['bottom'].set_color('#333333')
+            ax.spines['right'].set_visible(False)
+            ax.spines['top'].set_visible(False)
+            
+            ax.set_title(label, fontsize=9, fontweight='bold', pad=2)
+            
+            if label == "RBC":
+                ax.set_xlim(0, 300)
+                ax.set_xticks([0, 100, 200, 300])
+                ax.set_xticklabels(['0', '100', '200', ''], fontsize=6)
+                ax.set_xlabel('fL', fontsize=7)
+            elif label == "PLT":
+                ax.set_xlim(0, 40)
+                ax.set_xticks([0, 10, 20, 30, 40])
+                ax.set_xticklabels(['0', '10', '20', '30', '40'], fontsize=6)
+                ax.set_xlabel('fL', fontsize=7)
+            
+            plt.tight_layout(pad=0.3)
+            
+            buf = BytesIO()
+            plt.savefig(buf, format='png', transparent=True, dpi=100)
+            buf.seek(0)
+            img_base64 = base64.b64encode(buf.read()).decode('utf-8')
+            plt.close(fig)
+            buf.close()
+            
+            return img_base64
+        except Exception as e:
+            print(f"Error generando histograma {label}: {e}")
+            return None
+
+    # Buscar mensaje HL7 con datos de histogramas
+    graphs_data = {
+        'rbc': None,
+        'plt': None,
+        'diff': None,
+        'baso': None,
+    }
+
+    try:
+        from configuracion.models import HL7Mensaje
+        
+        numero_orden = str(orden.numero_orden).strip()
+        
+        # Buscar mensaje que contenga histogramas (buscar por contenido específico)
+        # El mensaje con histogramas es más antiguo, no el más reciente
+        hl7_msg = None
+        
+        # Primero intentar buscar directamente por contenido de histograma
+        hl7_msg = HL7Mensaje.objects.filter(
+            sample_id=numero_orden,
+            mensaje_raw__contains='RBC Histogram.Binary'
+        ).order_by('id').first()
+        
+        # Si no encuentra, intentar con otras estrategias
+        if not hl7_msg:
+            candidates = [numero_orden, numero_orden.lstrip("0") or numero_orden, str(orden.id)]
+            for candidate in candidates:
+                msg = HL7Mensaje.objects.filter(
+                    sample_id=candidate,
+                    mensaje_raw__contains='RBC Histogram.Binary'
+                ).order_by('id').first()
+                if msg:
+                    hl7_msg = msg
+                    break
+        
+        if hl7_msg and hl7_msg.mensaje_raw:
+            lines = hl7_msg.mensaje_raw.replace("\r", "\n").split("\n")
+            
+            for line in lines:
+                if 'RBC Histogram.Binary' in line:
+                    values = parse_histogram_binary(line)
+                    if values:
+                        graphs_data['rbc'] = generate_histogram_base64(values, "RBC")
+                
+                elif 'PLT Histogram.Binary' in line:
+                    values = parse_histogram_binary(line)
+                    if values:
+                        graphs_data['plt'] = generate_histogram_base64(values, "PLT")
+                
+                elif 'DIFFScatter.Binary' in line or 'DIFF Scatter.Binary' in line:
+                    graphs_data['diff'] = 'available'
+                
+                elif 'BASOScatter.Binary' in line or 'BASO Scatter.Binary' in line:
+                    graphs_data['baso'] = 'available'
+                    
+    except Exception as e:
+        print(f"Error extrayendo datos HL7: {e}")
+
+    # =========================
     # LOGO (ruta real en tu proyecto)
     # =========================
     logo_fs_path = os.path.join(
@@ -1488,6 +1764,7 @@ def informe_resultados_pdf(request, orden_id):
         'grouped_data': grouped_data,
         'validador': validador_data,
         'logo_path': logo_url,
+        'graphs_data': graphs_data,
     }
 
     # =========================
@@ -1505,3 +1782,723 @@ def informe_resultados_pdf(request, orden_id):
     filename = f"informe_resultados_orden_{orden_id}.pdf"
     response['Content-Disposition'] = f'inline; filename="{filename}"'
     return response
+
+
+def pacientes_dashboard(request):
+    """
+    Dashboard de pacientes con estadísticas y lista de pacientes.
+    Calcula:
+    - total_pacientes: total de pacientes registrados
+    - nuevos_mes: pacientes registrados en el mes actual
+    - total_ordenes: total de órdenes registradas
+    - ordenes_pendientes: órdenes con estado 'Pendiente'
+    - ordenes_en_proceso: órdenes con estado 'En proceso'
+    - ordenes_validadas: órdenes con estado 'Validado'
+    """
+    from django.utils import timezone
+    from datetime import timedelta
+    from django.db.models import Count
+
+    # Total de pacientes
+    total_pacientes = Paciente.objects.count()
+
+    # Pacientes nuevos este mes
+    nuevos_mes = Paciente.objects.filter(fecha_registro__month=datetime.now().month).count()
+
+    # Total de órdenes
+    total_ordenes = Orden.objects.count()
+
+    # Órdenes pendientes (estado 'Pendiente')
+    ordenes_pendientes = Orden.objects.filter(estado='Pendiente').count()
+
+    # Órdenes en proceso (estado 'En proceso')
+    ordenes_en_proceso = Orden.objects.filter(estado='En proceso').count()
+
+    # Órdenes validadas (estado 'Validado')
+    ordenes_validadas = Orden.objects.filter(estado='Validado').count()
+
+    # Lista de pacientes con count de órdenes (annotate)
+    pacientes = Paciente.objects.annotate(
+        ordenes_count=Count('orden')
+    ).order_by('-creado_en')[:50]
+
+    return render(request, 'laboratorio/pacientes_dashboard.html', {
+        'total_pacientes': total_pacientes,
+        'nuevos_mes': nuevos_mes,
+        'total_ordenes': total_ordenes,
+        'ordenes_pendientes': ordenes_pendientes,
+        'ordenes_en_proceso': ordenes_en_proceso,
+        'ordenes_validadas': ordenes_validadas,
+        'pacientes': pacientes,
+    })
+
+
+@login_required
+def paciente_historial(request, paciente_id):
+    """
+    Muestra el historial de órdenes y resultados de un paciente específico.
+    """
+    paciente = get_object_or_404(Paciente, id=paciente_id)
+    ordenes = Orden.objects.filter(paciente=paciente).select_related('paciente').prefetch_related('examenes__examen', 'examenes__resultados').order_by('-fecha')
+    return render(request, 'laboratorio/paciente_historial.html', {
+        'paciente': paciente,
+        'ordenes': ordenes
+    })
+
+
+def simulador_virtual(request):
+    """
+    Simulador virtual - cliente TCP puro que envía mensajes HL7 al Listener.
+    NO escribe en la base de datos - solo consulta y envía al equipo.
+    Trama HL7 con campos de longitud fija (como equipo real).
+    
+    FLUJO: Ingresar Orden -> Consultar DB Local -> Rellenar Interfaz -> Enviar HL7 con Padding al Listener.
+    """
+    import socket
+    from datetime import datetime
+    
+    error = None
+    success = False
+    respuesta_raw = None
+    numero_orden = None
+    nombre_paciente = None
+    documento = None
+    fecha_nacimiento = None
+    edad = None
+    sexo = None
+    medico = None
+    departamento = None
+    tipo_paciente = None
+    
+    # === DETECCIÓN AUTOMÁTICA DEL PUERTO DEL LISTENER ===
+    try:
+        from configuracion.listener_thread import PORT as LISTENER_PORT
+    except ImportError:
+        LISTENER_PORT = 2575  # Puerto por defecto (2575)
+    
+    LISTENER_HOST = '127.0.0.1'
+    START_BLOCK = "\x0b"
+    END_BLOCK = "\x1c"
+    END_LINE = "\r"
+    
+    # === LONGITUDES DE CAMPO HL7 (CAMPOS FIJOS) ===
+    LEN_DOCUMENTO = 20   # PID-3: Identificación del paciente (20 caracteres)
+    LEN_NOMBRE = 40      # PID-5: Apellidos y Nombre (40 caracteres)
+    LEN_FECHA_NAC = 8    # PID-7: Fecha nacimiento (YYYYMMDD) (8 caracteres)
+    LEN_SEXO = 1         # PID-8: Sexo (M/F/U)
+    LEN_ORDEN = 15       # ORC-2 y OBR-3: Número de orden (15 caracteres)
+    LEN_MEDICO = 20      # Médico tratante (20 caracteres)
+    LEN_DEPARTAMENTO = 20  # Departamento (20 caracteres)
+    
+    if request.method == 'POST':
+        numero_orden = request.POST.get('numero_orden', '').strip()
+        
+        # Los datos del paciente (incluyendo medico, departamento, tipo_paciente) se obtienen de la DB
+        # No se aceptan datos del formulario para estos campos
+        
+        if not numero_orden:
+            error = "Por favor ingrese un número de orden."
+            messages.error(request, error)
+        else:
+            # Consultar la orden en la base de datos
+            try:
+                orden = Orden.objects.get(numero_orden=numero_orden)
+                paciente = orden.paciente
+            except Orden.DoesNotExist:
+                error = f"No se encontró la orden {numero_orden}"
+                messages.error(request, error)
+                # Mantener los campos visibles con valor "—" aunque no se encontró la orden
+                nombre_paciente = "—"
+                documento = "—"
+                fecha_nacimiento = "—"
+                edad = "—"
+                sexo = "—"
+                medico = "—"
+                departamento = "—"
+                tipo_paciente = "Rutina"
+            else:
+                # === EXTRAER DATOS DEL PACIENTE DESDE LA BASE DE DATOS ===
+                # Estos datos vienen de la DB, no del formulario
+                nombre_paciente = paciente.nombre_completo or ''
+                documento = paciente.documento_identidad or ''
+                fecha_nacimiento = paciente.fecha_nacimiento.strftime('%Y-%m-%d') if paciente.fecha_nacimiento else None
+                sexo = paciente.sexo or 'U'
+                
+                # Calcular edad
+                if paciente.fecha_nacimiento:
+                    edad = calculate_age(paciente.fecha_nacimiento)
+                else:
+                    edad = None
+                
+                # === EXTRAER MÉDICO Y DEPARTAMENTO DESDE LA BASE DE DATOS ===
+                # Médico tratante desde orden.medico (o '—' si no existe)
+                medico = orden.medico if orden.medico else '—'
+                
+                # Departamento: no existe en modelo Orden, usar '—'
+                departamento = '—'
+                
+                # Tipo de paciente: si no existe en la base de datos, usar 'Rutina'
+                tipo_paciente = getattr(orden, 'tipo_paciente', None) or 'Rutina'
+                
+                # Verificar que tenga exámenes asociados
+                if not orden.examenes.exists():
+                    error = f"La orden {numero_orden} no tiene exámenes asociados."
+                    messages.error(request, error)
+                else:
+                    # === CONSTRUIR MENSAJE HL7 CON CAMPOS DE LONGITUD FIJA ===
+                    now = datetime.now().strftime('%Y%m%d%H%M%S')
+                    
+                    # === DATOS DEL PACIENTE DESDE LA DB (ya extraídos arriba) ===
+                    # Aplicar padding (espacios a la derecha) a cada campo HL7
+                    
+                    # PID-3: Documento de identidad (20 caracteres) - .ljust(20)
+                    pid3 = (documento or '').ljust(LEN_DOCUMENTO)[:LEN_DOCUMENTO]
+                    
+                    # PID-5: Nombre completo (40 caracteres) - .ljust(40)
+                    pid5 = (nombre_paciente or '').ljust(LEN_NOMBRE)[:LEN_NOMBRE]
+                    
+                    # PID-7: Fecha de nacimiento (8 caracteres YYYYMMDD)
+                    fecha_nac = ''
+                    if fecha_nacimiento:
+                        # El input viene como YYYY-MM-DD, convertir a YYYYMMDD
+                        try:
+                            fecha_nac = fecha_nacimiento.replace('-', '')
+                        except Exception:
+                            fecha_nac = ''
+                    pid7 = fecha_nac.ljust(LEN_FECHA_NAC)[:LEN_FECHA_NAC]
+                    
+                    # PID-8: Sexo (1 carácter)
+                    pid8 = (sexo or 'U')[:1].ljust(LEN_SEXO)
+                    
+                    # ORC-2 y OBR-3: Número de orden con padding (15 caracteres)
+                    orc2 = numero_orden.ljust(LEN_ORDEN)[:LEN_ORDEN]
+                    obr3 = numero_orden.ljust(LEN_ORDEN)[:LEN_ORDEN]
+                    
+                    # Médico tratante (20 caracteres)
+                    medico_valor = medico.ljust(LEN_MEDICO)[:LEN_MEDICO]
+                    
+                    # Departamento (20 caracteres)
+                    depto_valor = departamento.ljust(LEN_DEPARTAMENTO)[:LEN_DEPARTAMENTO]
+                    
+                    # Tipo de paciente con padding de 15 caracteres
+                    tipo_pac_valor = (tipo_paciente or 'Rutina').ljust(15)
+                    
+                    # MSH - Message Header
+                    msh = f"MSH|^~\\&|LABORATORIO|SISTEMA|LIS|LIS|{now}||ORM^O01|MSG001|P|2.5.1"
+                    
+                    # PID - Patient Identification (con campos de longitud fija)
+                    pid = f"PID|1|{pid3}||{pid5}|{pid7}|{pid8}"
+                    
+                    # ORC - Common Order (número de orden en ORC-2 con padding)
+                    orc = f"ORC|NW|{orc2}||{orc2}|{medico_valor}"
+                    
+                    # OBR - Observation Request (número de orden en OBR-3 con padding + departamento + tipo_paciente)
+                    obr = f"OBR|1||{obr3}|{now}|CONSULTA|{depto_valor}|{tipo_pac_valor}"
+                    
+                    # Construir mensaje HL7 completo
+                    hl7_message = f"{msh}\r{pid}\r{orc}\r{obr}\r"
+                    
+                    # === ENVIAR AL LISTENER POR SOCKET TCP ===
+                    try:
+                        # Envolver el mensaje con caracteres de control HL7
+                        mensaje_completo = START_BLOCK + hl7_message + END_BLOCK + END_LINE
+                        
+                        # Conectar al listener y enviar
+                        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                        sock.settimeout(10)  # Timeout de 10 segundos
+                        sock.connect((LISTENER_HOST, LISTENER_PORT))
+                        
+                        # Enviar mensaje
+                        sock.send(mensaje_completo.encode('utf-8'))
+                        
+                        # Recibir respuesta del listener
+                        respuesta_bytes = sock.recv(8192)
+                        sock.close()
+                        
+                        # Decodificar respuesta
+                        if respuesta_bytes:
+                            # Quitar caracteres de control HL7
+                            respuesta_decoded = respuesta_bytes.decode('utf-8', errors='ignore')
+                            # Buscar el contenido entre START_BLOCK y END_BLOCK
+                            if START_BLOCK in respuesta_decoded:
+                                start = respuesta_decoded.find(START_BLOCK) + 1
+                                end = respuesta_decoded.find(END_BLOCK)
+                                respuesta_raw = respuesta_decoded[start:end]
+                            else:
+                                respuesta_raw = respuesta_decoded
+                            
+                            # Verificar ACK
+                            if 'MSA|AA' in respuesta_raw:
+                                success = True
+                            elif 'MSA|AE' in respuesta_raw or 'MSA|AR' in respuesta_raw:
+                                error = f"Error del Listener: {respuesta_raw}"
+                                messages.error(request, error)
+                            else:
+                                # Respuesta de consulta (ADR^A19 con datos del paciente)
+                                success = True
+                        else:
+                            error = "No se recibió respuesta del Listener."
+                            messages.error(request, error)
+                        
+                    except socket.timeout:
+                        error = f"Timeout conectando al Listener en {LISTENER_HOST}:{LISTENER_PORT}. ¿Está el listener iniciado?"
+                        messages.error(request, error)
+                    except ConnectionRefusedError:
+                        error = f"Conexión rechazada por el Listener en {LISTENER_HOST}:{LISTENER_PORT}. Verifica que el listener esté corriendo."
+                        messages.error(request, error)
+                    except Exception as e:
+                        error = f"Error al enviar al Listener: {str(e)}"
+                        messages.error(request, error)
+
+    return render(request, 'laboratorio/simulador_virtual.html', {
+        'error': error,
+        'success': success,
+        'respuesta_raw': respuesta_raw,
+        'numero_orden': numero_orden,
+        'nombre_paciente': nombre_paciente,
+        'documento': documento,
+        'fecha_nacimiento': fecha_nacimiento,
+        'edad': edad,
+        'sexo': sexo,
+        'medico': medico,
+        'departamento': departamento,
+        'tipo_paciente': tipo_paciente,
+    })
+
+
+def generar_valor_parametro(param):
+    """Genera un valor aleatorio dentro del rango de referencia del parámetro."""
+    import random
+    referencia = param.referencia
+    
+    if not referencia:
+        return ''
+    
+    try:
+        # Parsear rango de referencia (ej: "12.0-17.5" o "4.5-11.0")
+        referencia = referencia.replace(',', '.')
+        if '-' in referencia:
+            partes = referencia.split('-')
+            min_val = float(partes[0].strip())
+            max_val = float(partes[1].strip())
+            
+            # Generar valor dentro del rango (con margen del 80% al 120% del rango)
+            margen = (max_val - min_val) * 0.2
+            valor = random.uniform(min_val + margen * 0.1, max_val - margen * 0.1)
+            
+            # Redondear a 2 decimales
+            return f"{valor:.2f}"
+    except (ValueError, AttributeError):
+        pass
+    
+    return ''
+
+
+def generar_resultados_default(examen):
+    """Genera resultados por defecto según el tipo de examen."""
+    import random
+    
+    nombre = examen.nombre.lower()
+    resultados = []
+    
+    # Hematología
+    if 'hemoglobina' in nombre or 'hb' in nombre:
+        resultados = [
+            {'parametro': 'Hemoglobina', 'valor': f"{random.uniform(12.0, 17.0):.2f}", 'unidad': 'g/dL', 'referencia': '12.0-17.5'},
+            {'parametro': 'Hematocrito', 'valor': f"{random.uniform(36, 50):.2f}", 'unidad': '%', 'referencia': '36-50'},
+            {'parametro': 'Eritrocitos', 'valor': f"{random.uniform(4.0, 6.0):.2f}", 'unidad': 'x10^6/µL', 'referencia': '4.0-6.0'},
+        ]
+    elif 'glóbulos' in nombre or 'leucocitos' in nombre or 'gb' in nombre:
+        resultados = [
+            {'parametro': 'Leucocitos', 'valor': f"{random.uniform(4.5, 11.0):.2f}", 'unidad': 'x10^3/µL', 'referencia': '4.5-11.0'},
+            {'parametro': 'Neutrófilos', 'valor': f"{random.uniform(40, 70):.2f}", 'unidad': '%', 'referencia': '40-70'},
+            {'parametro': 'Linfocitos', 'valor': f"{random.uniform(20, 45):.2f}", 'unidad': '%', 'referencia': '20-45'},
+            {'parametro': 'Monocitos', 'valor': f"{random.uniform(2, 10):.2f}", 'unidad': '%', 'referencia': '2-10'},
+            {'parametro': 'Eosinófilos', 'valor': f"{random.uniform(1, 5):.2f}", 'unidad': '%', 'referencia': '1-5'},
+            {'parametro': 'Basófilos', 'valor': f"{random.uniform(0, 1):.2f}", 'unidad': '%', 'referencia': '0-1'},
+        ]
+    elif 'plaquetas' in nombre or 'trombocitos' in nombre:
+        resultados = [
+            {'parametro': 'Plaquetas', 'valor': f"{random.uniform(150, 400):.2f}", 'unidad': 'x10^3/µL', 'referencia': '150-400'},
+        ]
+    # Química sanguínea
+    elif 'glucosa' in nombre or 'glucemia' in nombre:
+        resultados = [
+            {'parametro': 'Glucosa', 'valor': f"{random.uniform(70, 100):.2f}", 'unidad': 'mg/dL', 'referencia': '70-100'},
+        ]
+    elif 'creatinina' in nombre:
+        resultados = [
+            {'parametro': 'Creatinina', 'valor': f"{random.uniform(0.7, 1.3):.2f}", 'unidad': 'mg/dL', 'referencia': '0.7-1.3'},
+        ]
+    elif 'urea' in nombre:
+        resultados = [
+            {'parametro': 'Urea', 'valor': f"{random.uniform(15, 45):.2f}", 'unidad': 'mg/dL', 'referencia': '15-45'},
+        ]
+    elif 'ácido úrico' in nombre or 'urico' in nombre:
+        resultados = [
+            {'parametro': 'Ácido Úrico', 'valor': f"{random.uniform(3.5, 7.2):.2f}", 'unidad': 'mg/dL', 'referencia': '3.5-7.2'},
+        ]
+    elif 'colesterol' in nombre:
+        resultados = [
+            {'parametro': 'Colesterol Total', 'valor': f"{random.uniform(150, 200):.2f}", 'unidad': 'mg/dL', 'referencia': '0-200'},
+            {'parametro': 'HDL', 'valor': f"{random.uniform(40, 60):.2f}", 'unidad': 'mg/dL', 'referencia': '40-60'},
+            {'parametro': 'LDL', 'valor': f"{random.uniform(100, 130):.2f}", 'unidad': 'mg/dL', 'referencia': '0-130'},
+            {'parametro': 'Triglicéridos', 'valor': f"{random.uniform(50, 150):.2f}", 'unidad': 'mg/dL', 'referencia': '0-150'},
+        ]
+    elif 'transaminasa' in nombre or 'alt' in nombre or 'ast' in nombre:
+        resultados = [
+            {'parametro': 'ALT (TGP)', 'valor': f"{random.uniform(7, 56):.2f}", 'unidad': 'U/L', 'referencia': '7-56'},
+            {'parametro': 'AST (TGO)', 'valor': f"{random.uniform(10, 40):.2f}", 'unidad': 'U/L', 'referencia': '10-40'},
+        ]
+    elif 'fosfatasa' in nombre and 'alcalina' in nombre:
+        resultados = [
+            {'parametro': 'Fosfatasa Alcalina', 'valor': f"{random.uniform(44, 147):.2f}", 'unidad': 'U/L', 'referencia': '44-147'},
+        ]
+    elif 'bilirrubina' in nombre:
+        resultados = [
+            {'parametro': 'Bilirrubina Total', 'valor': f"{random.uniform(0.1, 1.2):.2f}", 'unidad': 'mg/dL', 'referencia': '0.1-1.2'},
+            {'parametro': 'Bilirrubina Directa', 'valor': f"{random.uniform(0.0, 0.3):.2f}", 'unidad': 'mg/dL', 'referencia': '0-0.3'},
+            {'parametro': 'Bilirrubina Indirecta', 'valor': f"{random.uniform(0.1, 0.9):.2f}", 'unidad': 'mg/dL', 'referencia': '0.1-0.9'},
+        ]
+    elif 'proteína' in nombre:
+        resultados = [
+            {'parametro': 'Proteína Total', 'valor': f"{random.uniform(6.0, 8.3):.2f}", 'unidad': 'g/dL', 'referencia': '6.0-8.3'},
+            {'parametro': 'Albúmina', 'valor': f"{random.uniform(3.5, 5.5):.2f}", 'unidad': 'g/dL', 'referencia': '3.5-5.5'},
+        ]
+    elif 'calcio' in nombre:
+        resultados = [
+            {'parametro': 'Calcio', 'valor': f"{random.uniform(8.5, 10.5):.2f}", 'unidad': 'mg/dL', 'referencia': '8.5-10.5'},
+        ]
+    elif 'fósforo' in nombre or 'fosforo' in nombre:
+        resultados = [
+            {'parametro': 'Fósforo', 'valor': f"{random.uniform(2.5, 4.5):.2f}", 'unidad': 'mg/dL', 'referencia': '2.5-4.5'},
+        ]
+    elif 'magnesio' in nombre:
+        resultados = [
+            {'parametro': 'Magnesio', 'valor': f"{random.uniform(1.5, 2.5):.2f}", 'unidad': 'mg/dL', 'referencia': '1.5-2.5'},
+        ]
+    elif 'sodio' in nombre:
+        resultados = [
+            {'parametro': 'Sodio', 'valor': f"{random.uniform(136, 145):.2f}", 'unidad': 'mEq/L', 'referencia': '136-145'},
+        ]
+    elif 'potasio' in nombre:
+        resultados = [
+            {'parametro': 'Potasio', 'valor': f"{random.uniform(3.5, 5.0):.2f}", 'unidad': 'mEq/L', 'referencia': '3.5-5.0'},
+        ]
+    elif 'cloro' in nombre:
+        resultados = [
+            {'parametro': 'Cloro', 'valor': f"{random.uniform(98, 106):.2f}", 'unidad': 'mEq/L', 'referencia': '98-106'},
+        ]
+    # Agregar más exámenes según necesidad...
+    
+    # Si no hay resultados por defecto, generar uno genérico
+    if not resultados:
+        resultados = [
+            {'parametro': examen.nombre, 'valor': 'Resultado generado', 'unidad': '', 'referencia': ''},
+        ]
+    
+    return resultados
+
+
+def generar_mensaje_hl7(orden, paciente, resultados):
+    """Genera un mensaje HL7 de respuesta simulado."""
+    from datetime import datetime
+    
+    fecha_hl7 = datetime.now().strftime('%Y%m%d%H%M%S')
+    fechaNac = paciente.fecha_nacimiento.strftime('%Y%m%d') if paciente.fecha_nacimiento else ''
+    
+    # Construir mensaje HL7
+    hl7_parts = []
+    
+    # MSH - Message Header
+    hl7_parts.append(f"MSH|^~\\&|LABORATORIO|SISTEMA|LIS|LIS|{fecha_hl7}||ORU^R01|MSG001|P|2.5.1")
+    
+    # PID - Patient Identification
+    hl7_parts.append(f"PID|1||{paciente.documento_identidad}||{paciente.nombre_completo}^{paciente.nombre_completo}||{fechaNac}|{paciente.sexo}")
+    
+    # ORC - Common Order
+    hl7_parts.append(f"ORC|RE||{orden.numero_orden}")
+    
+    # OBR - Observation Request
+    hl7_parts.append(f"OBR|1||{orden.numero_orden}|{orden.fecha.strftime('%Y%m%d%H%M%S')}|{orden.tipo}")
+    
+    # OBX - Observation Result
+    for i, res in enumerate(resultados, 1):
+        valor = res.get('valor', '')
+        unidad = res.get('unidad', '')
+        referencia = res.get('referencia', '')
+        hl7_parts.append(f"OBX|{i}|NM|{res.get('parametro', '')}||{valor}|{unidad}||||||F|||{fecha_hl7}")
+    
+    return '\n'.join(hl7_parts)
+
+
+def simulador(request):
+    """
+    Página simulador - vista principal del simulador.
+    """
+    return render(request, 'laboratorio/simulador.html')
+
+
+# ------------------------------
+# MÓDULO DE PROFORMAS
+# ------------------------------
+from datetime import timedelta
+
+@login_required
+def proforma_lista(request):
+    """
+    Lista de proformas activas (no vencidas).
+    Las proformas con más de 10 días de antigüedad se ocultan automáticamente.
+    """
+    from django.utils import timezone
+    
+    hoy = timezone.now().date()
+    fecha_limite = hoy - timedelta(days=10)
+    
+    # Mostrar solo proformas creadas en los últimos 10 días
+    proformas = Proforma.objects.filter(
+        fecha_creacion__date__gte=fecha_limite
+    ).select_related('paciente').prefetch_related('examenes__examen').order_by('-fecha_creacion')
+    
+    return render(request, 'laboratorio/proforma_lista.html', {
+        'proformas': proformas,
+    })
+
+
+@login_required
+def proforma_nueva(request):
+    """
+    Formulario para crear una nueva proforma.
+    """
+    if request.method == 'POST':
+        documento = request.POST.get('documento_identidad', '').strip()
+        nombre = request.POST.get('nombre_completo', '').strip()
+        medico = request.POST.get('medico', '').strip()
+        mostrar_precios = request.POST.get('mostrar_precios') == 'on'
+        examenes_codigos = request.POST.getlist('examen_codigo[]')
+        examenes_precios = request.POST.getlist('examen_precio[]')
+        
+        if not documento or not nombre:
+            messages.error(request, "El documento y nombre del paciente son obligatorios.")
+            return redirect('proforma_nueva')
+        
+        if not examenes_codigos:
+            messages.error(request, "Debe seleccionar al menos un examen.")
+            return redirect('proforma_nueva')
+        
+        # Obtener o crear paciente
+        paciente, _ = Paciente.objects.get_or_create(
+            documento_identidad=documento,
+            defaults={'nombre_completo': nombre}
+        )
+        
+        # Calcular total
+        total = 0
+        for idx, codigo in enumerate(examenes_codigos):
+            try:
+                precio = float(examenes_precios[idx]) if idx < len(examenes_precios) else 0
+                total += precio
+            except (ValueError, TypeError):
+                pass
+        
+        # Crear proforma
+        proforma = Proforma.objects.create(
+            paciente=paciente,
+            medico=medico,
+            mostrar_precios=mostrar_precios,
+            total=total,
+            creado_por=request.user
+        )
+        
+        # Crear exámenes asociados
+        for idx, codigo in enumerate(examenes_codigos):
+            try:
+                examen = Examen.objects.get(codigo=codigo)
+                precio = float(examenes_precios[idx]) if idx < len(examenes_precios) else float(examen.precio)
+                ProformaExamen.objects.create(
+                    proforma=proforma,
+                    examen=examen,
+                    precio_unitario=precio
+                )
+            except Examen.DoesNotExist:
+                continue
+        
+        messages.success(request, f"Proforma {proforma.numero_proforma} creada correctamente. Puede ver el PDF haciendo clic en el botón PDF.")
+        return redirect('proforma_lista')
+    
+    return render(request, 'laboratorio/proforma_form.html')
+
+
+@login_required
+def proforma_pdf(request, proforma_id):
+    """
+    Genera el PDF de la proforma usando ReportLab.
+    """
+    from io import BytesIO
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    
+    proforma = get_object_or_404(Proforma, id=proforma_id)
+    examenes = proforma.examenes.select_related('examen').all()
+    
+    buffer = BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+    
+    # Encabezado
+    c.setFont("Helvetica-Bold", 18)
+    c.drawString(50, height - 50, "PROFORMA")
+    
+    c.setFont("Helvetica", 10)
+    c.drawString(50, height - 70, f"Número: {proforma.numero_proforma}")
+    c.drawString(50, height - 85, f"Fecha: {proforma.fecha_creacion.strftime('%d/%m/%Y')}")
+    c.drawString(50, height - 100, f"Válido hasta: {proforma.fecha_vencimiento.strftime('%d/%m/%Y')}")
+    
+    # Datos del paciente
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(50, height - 130, "DATOS DEL PACIENTE")
+    c.setFont("Helvetica", 10)
+    c.drawString(50, height - 150, f"Paciente: {proforma.paciente.nombre_completo}")
+    c.drawString(50, height - 165, f"Documento: {proforma.paciente.documento_identidad}")
+    if proforma.medico:
+        c.drawString(50, height - 180, f"Médico: {proforma.medico}")
+    
+    # Tabla de exámenes
+    y = height - 220
+    
+    # Encabezado de tabla
+    c.setFont("Helvetica-Bold", 10)
+    c.drawString(50, y, "Código")
+    if proforma.mostrar_precios:
+        c.drawString(120, y, "Examen")
+        c.drawString(350, y, "Precio")
+    else:
+        c.drawString(120, y, "Examen")
+    
+    y -= 15
+    c.setLineWidth(0.5)
+    c.line(50, y + 10, 500, y + 10)
+    
+    c.setFont("Helvetica", 9)
+    
+    for item in examenes:
+        if y < 50:
+            c.showPage()
+            y = height - 50
+        
+        c.drawString(50, y, item.examen.codigo)
+        if proforma.mostrar_precios:
+            c.drawString(120, y, item.examen.nombre[:35] if len(item.examen.nombre) > 35 else item.examen.nombre)
+            c.drawString(350, y, f"${item.precio_unitario:.2f}")
+        else:
+            c.drawString(120, y, item.examen.nombre[:45] if len(item.examen.nombre) > 45 else item.examen.nombre)
+        y -= 18
+    
+    # Total
+    y -= 10
+    c.line(50, y + 10, 500, y + 10)
+    y -= 5
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(50, y, f"TOTAL: ${proforma.total:.2f}")
+    
+    # Observaciones
+    if proforma.observaciones:
+        y -= 40
+        c.setFont("Helvetica-Bold", 10)
+        c.drawString(50, y, "Observaciones:")
+        y -= 15
+        c.setFont("Helvetica", 9)
+        c.drawString(50, y, proforma.observaciones[:100] if len(proforma.observaciones) > 100 else proforma.observaciones)
+    
+    c.save()
+    buffer.seek(0)
+    
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="proforma_{proforma.numero_proforma}.pdf"'
+    return response
+
+
+@login_required
+def proforma_pdf_popup(request, proforma_id):
+    """
+    Vista que abre el PDF en una nueva ventana y luego redirige a la lista.
+    """
+    proforma = get_object_or_404(Proforma, id=proforma_id)
+    
+    # Renderizar template que abre el PDF en nueva ventana
+    return render(request, 'laboratorio/proforma_pdf_popup.html', {
+        'proforma': proforma,
+        'pdf_url': reverse('proforma_pdf', args=[proforma_id])
+    })
+
+
+@login_required
+def proforma_eliminar(request, proforma_id):
+    """
+    Elimina una proforma.
+    """
+    proforma = get_object_or_404(Proforma, id=proforma_id)
+    proforma.delete()
+    messages.success(request, "Proforma eliminada correctamente.")
+    return redirect('proforma_lista')
+
+
+@login_required
+def proforma_generar_orden(request, proforma_id):
+    """
+    Genera una orden a partir de una proforma.
+    """
+    proforma = get_object_or_404(Proforma.objects.prefetch_related('examenes__examen'), id=proforma_id)
+    
+    # Generar número de orden correlativo
+    max_num = 999
+    for s in Orden.objects.values_list('numero_orden', flat=True):
+        ds = ''.join(ch for ch in (s or '') if ch.isdigit())
+        if ds:
+            try:
+                n = int(ds)
+                if n > max_num:
+                    max_num = n
+            except ValueError:
+                pass
+    siguiente = max_num + 1
+    numero = f"{siguiente:06d}"
+    
+    # Crear la orden
+    orden = Orden.objects.create(
+        paciente=proforma.paciente,
+        numero_orden=numero,
+        medico=proforma.medico,
+        observaciones=proforma.observaciones,
+        creado_por=request.user
+    )
+    
+    # Crear los exámenes de la orden
+    # IMPORTANTE: guardar los datos ANTES de eliminar la proforma
+    examenes_proforma = proforma.examenes.select_related('examen').all()
+    examenes_data = []
+    for pe in examenes_proforma:
+        examenes_data.append({
+            'examen_id': pe.examen.id,
+            'precio_unitario': pe.precio_unitario
+        })
+    
+    for pe in examenes_data:
+        OrdenExamen.objects.create(
+            orden=orden,
+            examen_id=pe['examen_id'],
+            precio=pe['precio_unitario'],
+            creado_por=request.user
+        )
+    
+    # Calcular total de la orden
+    orden.total = sum(oe.precio for oe in orden.examenes.all())
+    orden.save()
+    
+    # Eliminar la proforma ya que se convirtió en orden
+    proforma.delete()
+    
+    messages.success(request, f"Orden {numero} creada correctamente desde proforma.")
+    return redirect('detalle_orden', orden_id=orden.id)

@@ -1,0 +1,2 @@
+## Blackbox Added Memories
+- Django lab project with PDF report fixes: (1) Results not appearing - fixed by converting defaultdict to dict for Django template serialization, (2) Duplicate results - fixed by deduplication based on (parameter, value) key, (3) Charts not appearing - fixed by correcting HL7 message search order (oldest first for histogram data) and generating matplotlib images in base64

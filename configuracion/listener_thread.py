@@ -121,12 +121,39 @@ def construir_respuesta_consulta(sample_id, msh_in=""):
         # El segmento QRD debe repetir el ID de muestra que el equipo pidió
         qrd = f"QRD|{now}|R|I|Q100|||1^RD|{sample_id}|OTH"
 
-        # PID:
-        # - PID-2: colocamos el sample_id (para equipos que lo toman desde ahí)
-        # - PID-3: colocamos la cédula (ID real del paciente)
-        pid = f"PID|1|{sample_id}||{p.documento_identidad}||{nombre_hl7}||{f_nac}|{sexo_hl7}"
+        # PID (campos estándar HL7):
+        # - PID-3: Documento de identidad (cédula)
+        # - PID-5: Apellido^Nombre
+        # - PID-7: Fecha de nacimiento (YYYYMMDD)
+        # - PID-8: Sexo (M/F/U)
+        pid = f"PID|1||{p.documento_identidad}||{nombre_hl7}||{f_nac}|{sexo_hl7}"
         
-        hl7_resp = f"{msh}\r{msa}\r{qrd}\r{pid}\r"
+        # PV1 (Paciente Visit - información de la visita):
+        # - PV1-2: Tipo de Paciente (I=Inpatient, O=Outpatient, E=Emergency)
+        # - PV1-3: Departamento
+        # - PV1-7: Médico solicitante (Apellido^Nombre)
+        tipo_paciente = "O"  # Ambulatorio por defecto
+        if orden.tipo == "Urgente":
+            tipo_paciente = "E"  # Emergencia
+        
+        depto = orden.observaciones or "LABORATORIO"  # Departamento que solicita
+        medico = orden.medico or ""  # Médico que solicitó la orden
+        
+        # Formatear médico como Apellido^Nombre si existe
+        if medico:
+            # Asumimos que el médico ya tiene formato "Apellido Nombre" o similar
+            # Lo convertimos a formato HL7 Apellido^Nombre
+            partes_medico = medico.strip().split()
+            if len(partes_medico) >= 2:
+                medico_hl7 = f"{partes_medico[-1]}^{' '.join(partes_medico[:-1])}"
+            else:
+                medico_hl7 = medico
+        else:
+            medico_hl7 = ""
+        
+        pv1 = f"PV1|1|{tipo_paciente}|||{depto}||||{medico_hl7}||"
+        
+        hl7_resp = f"{msh}\r{msa}\r{qrd}\r{pid}\r{pv1}\r"
         return hl7_resp.encode("utf-8")
         
     except Exception as e:
@@ -152,20 +179,25 @@ def parse_hl7(raw):
         try:
             if obr:
                 parts = obr.split("|")
-                # OJO: en tu HL7 real el sample_id ya te funciona como '001013'
-                # y está llegando bien por aquí (en tu BD ya vimos sample_id lleno).
-                # (Algunos equipos lo mandan en OBR-3 u OBR-2)
+                # OBR-2: Placer Order Number (número de orden/sample ID - posición estándar)
+                # OBR-3: Filler Order Number (puede tener fecha u otro ID)
+                # Primero buscar en posición 2 (más común para número de orden)
                 sample_id = ""
-                if len(parts) > 3 and parts[3]:
-                    sample_id = parts[3]
-                elif len(parts) > 2 and parts[2]:
+                if len(parts) > 2 and parts[2]:
                     sample_id = parts[2]
+                elif len(parts) > 3 and parts[3]:
+                    sample_id = parts[3]
                 exam_codes = parts[4] if len(parts) > 4 else ""
 
             if not sample_id and orc:
                 parts = orc.split("|")
-                # ORC-3 suele traer el ID de muestra/orden en Genrui (ej: ORC|RF|C1|001000||IP)
-                sample_id = parts[3] if len(parts) > 3 else ""
+                # ORC-2: Placer Order Number (número de orden en posición estándar)
+                # Formato: ORC|NW|NUMERO_ORDEN|...
+                if len(parts) > 2 and parts[2]:
+                    sample_id = parts[2]
+                # ORC-3 como fallback (otros equipos lo usan ahí)
+                elif len(parts) > 3 and parts[3]:
+                    sample_id = parts[3]
 
             if not sample_id and pid:
                 parts = pid.split("|")
@@ -587,7 +619,25 @@ def listener_loop():
                                         guardar_imagen_desde_obx(msg, linea)
 
                             try:
-                                _auto_cargar_resultados_desde_hl7(msg)
+                                resultado = _auto_cargar_resultados_desde_hl7(msg)
+                                
+                                # Generar PDF automáticamente si se procesaron resultados
+                                if resultado and resultado.get("ok") and resultado.get("orden_id"):
+                                    try:
+                                        from laboratorio.models import Orden
+                                        from laboratorio.utils.pdf_informe import generar_pdf_para_orden
+                                        
+                                        orden_id = resultado.get("orden_id")
+                                        orden = Orden.objects.filter(id=orden_id).first()
+                                        
+                                        if orden:
+                                            pdf_path = generar_pdf_para_orden(orden, guardar=True)
+                                            print(f"PDF generado automáticamente: {pdf_path}")
+                                    except Exception as e:
+                                        print(f"Error generando PDF automático: {e}")
+                                        import traceback
+                                        traceback.print_exc()
+                                        
                             except Exception:
                                 traceback.print_exc()
 

@@ -11,6 +11,7 @@ class Paciente(models.Model):
     telefono = models.CharField(max_length=20, blank=True, null=True)
     email = models.EmailField(blank=True, null=True)
     direccion = models.TextField(blank=True, null=True)
+    fecha_registro = models.DateField(null=True, blank=True, help_text="Fecha de registro del paciente")
 
     numero_registro = models.PositiveIntegerField(unique=True, editable=False, null=True, blank=True)
 
@@ -102,6 +103,7 @@ class Orden(models.Model):
     total = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     observaciones = models.TextField(blank=True, null=True)
     equipo = models.ForeignKey(Equipo, on_delete=models.SET_NULL, null=True, blank=True)
+    pdf_ruta = models.CharField(max_length=255, blank=True, null=True, verbose_name="Ruta del PDF generado")
 
     creado_en = models.DateTimeField(auto_now_add=True)
     actualizado_en = models.DateTimeField(auto_now=True)
@@ -194,3 +196,57 @@ class Muestra(models.Model):
 
     def __str__(self):
         return f"Muestra {self.codigo_barra} ({self.tipo})"
+
+
+# ------------------------------
+# MÓDULO DE PROFORMAS
+# ------------------------------
+class ContadorProforma(models.Model):
+    """Contador global para el correlativo de proformas"""
+    ultimo_numero = models.PositiveIntegerField(default=0)
+    
+    @classmethod
+    def siguiente_numero(cls):
+        contador, _ = cls.objects.get_or_create(id=1)
+        contador.ultimo_numero += 1
+        contador.save()
+        return contador.ultimo_numero
+
+
+class Proforma(models.Model):
+    numero_proforma = models.CharField(max_length=20, unique=True)
+    paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE)
+    medico = models.CharField(max_length=150, blank=True, null=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_vencimiento = models.DateField(blank=True, null=True)
+    mostrar_precios = models.BooleanField(default=True, verbose_name="Mostrar precios unitarios en PDF")
+    total = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    observaciones = models.TextField(blank=True, null=True)
+    creado_por = models.ForeignKey(User, related_name='proforma_creado_por', on_delete=models.SET_NULL, null=True, blank=True)
+
+    def __str__(self):
+        return f"Proforma {self.numero_proforma} - {self.paciente.nombre_completo}"
+
+    def save(self, *args, **kwargs):
+        from datetime import timedelta
+        from django.utils import timezone
+        # Generar número correlativo si es nuevo
+        if not self.numero_proforma:
+            num = ContadorProforma.siguiente_numero()
+            self.numero_proforma = f"PROF-{num:06d}"
+        
+        # Calcular fecha de vencimiento (10 días) - usar fecha actual si no existe
+        if not self.fecha_vencimiento:
+            fecha_ref = self.fecha_creacion if self.fecha_creacion else timezone.now()
+            self.fecha_vencimiento = fecha_ref.date() + timedelta(days=10)
+        
+        super().save(*args, **kwargs)
+
+
+class ProformaExamen(models.Model):
+    proforma = models.ForeignKey(Proforma, on_delete=models.CASCADE, related_name='examenes')
+    examen = models.ForeignKey(Examen, on_delete=models.CASCADE)
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+
+    def __str__(self):
+        return f"{self.proforma.numero_proforma} - {self.examen.nombre}"

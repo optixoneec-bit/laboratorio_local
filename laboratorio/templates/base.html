@@ -141,6 +141,9 @@ body{
   <a href="{% url 'validacion_lista' %}" class="nav-item {% if request.resolver_match.url_name == 'validacion_lista' %}active{% endif %}">
     <span class="icon">✅</span><span>Validación</span>
   </a>
+  <a href="{% url 'proforma_lista' %}" class="nav-item {% if request.resolver_match.url_name == 'proforma_lista' %}active{% endif %}">
+    <span class="icon">📋</span><span>Proformas</span>
+  </a>
   <a href="#" class="nav-item">
     <span class="icon">💰</span><span>Precios</span>
   </a>

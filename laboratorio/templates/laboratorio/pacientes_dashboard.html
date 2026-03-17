@@ -1,0 +1,58 @@
+{% extends "base_star.html" %}
+{% load static %}
+{% block title %}Dashboard de Pacientes{% endblock %}
+
+{% block extra_head %}
+<style>
+.dashboard-card{border-radius:12px;padding:20px;}
+.stat-value{font-size:2rem;font-weight:700;color:#2c3e50;}
+.stat-label{font-size:.85rem;color:#6c757d;}
+.pacientes-table thead th{background:linear-gradient(135deg,#2d7bd8,#1a5bb8);color:#fff;}
+.badge-genero{padding:5px 10px;border-radius:20px;font-size:.75rem;}
+.badge-masculino{background:#e3f2fd;color:#1565c0;}
+.badge-femenino{background:#fce4ec;color:#c2185b;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h2 style="font-weight:700;color:#2c3e50;"><i class="mdi mdi-account-multiple-outline" style="color:#2d7bd8;margin-right:10px;"></i>Dashboard de Pacientes</h2>
+    <p class="text-muted mb-0">Resumen y gestion de pacientes del laboratorio</p>
+  </div>
+</div>
+
+<div class="row mb-4">
+  <div class="col-md-2 col-6 mb-3"><div class="dashboard-card bg-white" style="box-shadow:0 2px 8px rgba(0,0,0,.05);"><div class="d-flex justify-content-between"><div><div class="stat-label">Total Pacientes</div><div class="stat-value">{{ total_pacientes }}</div></div><div style="width:50px;height:50px;border-radius:12px;background:#e7f1ff;color:#2d7bd8;display:flex;align-items:center;justify-content:center;"><i class="mdi mdi-account-group"></i></div></div></div></div>
+  <div class="col-md-2 col-6 mb-3"><div class="dashboard-card bg-white" style="box-shadow:0 2px 8px rgba(0,0,0,.05);"><div class="d-flex justify-content-between"><div><div class="stat-label">Nuevos Este Mes</div><div class="stat-value">{{ nuevos_mes }}</div></div><div style="width:50px;height:50px;border-radius:12px;background:#e8f5e9;color:#43a047;display:flex;align-items:center;justify-content:center;"><i class="mdi mdi-account-plus"></i></div></div></div></div>
+  <div class="col-md-2 col-6 mb-3"><div class="dashboard-card bg-white" style="box-shadow:0 2px 8px rgba(0,0,0,.05);"><div class="d-flex justify-content-between"><div><div class="stat-label">Total Órdenes</div><div class="stat-value">{{ total_ordenes }}</div></div><div style="width:50px;height:50px;border-radius:12px;background:#e3f2fd;color:#1565c0;display:flex;align-items:center;justify-content:center;"><i class="mdi mdi-file-document-multiple"></i></div></div></div></div>
+  <div class="col-md-2 col-6 mb-3"><div class="dashboard-card bg-white" style="box-shadow:0 2px 8px rgba(0,0,0,.05);"><div class="d-flex justify-content-between"><div><div class="stat-label">Pendientes</div><div class="stat-value">{{ ordenes_pendientes }}</div></div><div style="width:50px;height:50px;border-radius:12px;background:#fff3e0;color:#f57c00;display:flex;align-items:center;justify-content:center;"><i class="mdi mdi-clock-outline"></i></div></div></div></div>
+  <div class="col-md-2 col-6 mb-3"><div class="dashboard-card bg-white" style="box-shadow:0 2px 8px rgba(0,0,0,.05);"><div class="d-flex justify-content-between"><div><div class="stat-label">En Proceso</div><div class="stat-value">{{ ordenes_en_proceso }}</div></div><div style="width:50px;height:50px;border-radius:12px;background:#f3e5f5;color:#7b1fa2;display:flex;align-items:center;justify-content:center;"><i class="mdi mdi-progress-clock"></i></div></div></div></div>
+  <div class="col-md-2 col-6 mb-3"><div class="dashboard-card bg-white" style="box-shadow:0 2px 8px rgba(0,0,0,.05);"><div class="d-flex justify-content-between"><div><div class="stat-label">Validados</div><div class="stat-value">{{ ordenes_validadas }}</div></div><div style="width:50px;height:50px;border-radius:12px;background:#e8f5e9;color:#43a047;display:flex;align-items:center;justify-content:center;"><i class="mdi mdi-check-circle-outline"></i></div></div></div></div>
+</div>
+
+<div class="card mb-4" style="border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.05);">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0" style="border-radius:12px;overflow:hidden;">
+      <thead><tr style="background:linear-gradient(135deg,#2d7bd8,#1a5bb8);color:white;"><th>#</th><th>Cedula</th><th>Nombre</th><th>Sexo</th><th>Fecha NacTelefono</th><th>Email</th><th></th><th>Ordenes</th><th>Acciones</th></tr></thead>
+      <tbody>
+        {% for p in pacientes %}
+        <tr>
+          <td>{{ forloop.counter }}</td>
+          <td><strong>{{ p.documento_identidad }}</strong></td>
+          <td><a href="{% url 'paciente_historial' p.id %}" style="color:#2c3e50;font-weight:500;">{{ p.nombre_completo }}</a></td>
+          <td>{% if p.sexo == 'M' %}<span class="badge-genero badge-masculino">M</span>{% else %}<span class="badge-genero badge-femenino">F</span>{% endif %}</td>
+          <td>{% if p.fecha_nacimiento %}{{ p.fecha_nacimiento|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+          <td>{{ p.telefono|default:"—" }}</td>
+          <td>{{ p.email|default:"—" }}</td>
+          <td><span class="badge bg-primary">{{ p.ordenes_count|default:0 }}</span></td>
+          <td><a href="{% url 'paciente_historial' p.id %}" class="btn btn-sm" style="background:#e7f1ff;color:#2d7bd8;"><i class="mdi mdi-eye"></i></a></td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="9" class="text-center py-4 text-muted">No se encontraron pacientes</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

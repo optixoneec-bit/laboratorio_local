@@ -253,6 +253,27 @@
         </tbody>
     </table>
 
+    <!-- ==================== GRÁFICAS DE HEMATOLOGÍA ==================== -->
+    {% if graphs_data.rbc or graphs_data.plt %}
+    <div class="graphs-section" style="margin-top: 20px; page-break-before: auto;">
+        <h3 style="text-align: center; font-size: 10pt; margin-bottom: 10px;">Gráficas de Hematología</h3>
+        
+        <div style="display: flex; justify-content: space-between; width: 100%;">
+            {% if graphs_data.rbc %}
+            <div style="width: 48%; text-align: center;">
+                <img src="data:image/png;base64,{{ graphs_data.rbc }}" style="max-width: 100%; height: auto;">
+            </div>
+            {% endif %}
+            
+            {% if graphs_data.plt %}
+            <div style="width: 48%; text-align: center;">
+                <img src="data:image/png;base64,{{ graphs_data.plt }}" style="max-width: 100%; height: auto;">
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- ==================== PIE DE PÁGINA ==================== -->
     <div class="page-footer">
 

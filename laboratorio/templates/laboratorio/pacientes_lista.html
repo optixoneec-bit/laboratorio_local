@@ -37,62 +37,87 @@
   .slx-label{font-size:.9rem;margin-bottom:4px;display:block;}
   .slx-input{width:100%;border:1px solid #dfe3ea;border-radius:8px;padding:8px;font-size:.9rem; margin-bottom: 10px;}
   .slx-input:focus{outline:none;border-color:#2d7bd8;box-shadow:0 0 0 3px rgba(45,123,216,.15);}
+  
+  /* Estilos para los enlaces de nombre de paciente */
+  .patient-link{color:#2d7bd8;font-weight:600;text-decoration:none;}
+  .patient-link:hover{text-decoration:underline;}
+  
+  /* ===== DASHBOARD STATS INTEGRADO ===== */
+  .dashboard-card{border-radius:12px;padding:20px;}
+  .stat-value{font-size:2rem;font-weight:700;color:#2c3e50;}
+  .stat-label{font-size:.85rem;color:#6c757d;}
+  .badge-genero{padding:5px 10px;border-radius:20px;font-size:.75rem;}
+  .badge-masculino{background:#e3f2fd;color:#1565c0;}
+  .badge-femenino{background:#fce4ec;color:#c2185b;}
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="slx-card mt-4">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <h4 class="mb-0">Pacientes registrados</h4>
-    <div class="d-flex gap-2">
-      <form method="get" class="d-flex" style="max-width:320px;">
-        <input type="text" name="q" value="{{ request.GET.q }}" class="form-control form-control-sm me-2" placeholder="Buscar por nombre o cédula">
-        <button type="submit" class="btn btn-sm btn-outline-primary">Buscar</button>
-      </form>
-      <button type="button" class="btn btn-sm btn-primary" onclick="openModalPaciente()">
-        <i class="mdi mdi-account-plus-outline"></i> Nuevo
-      </button>
-    </div>
-  </div>
+<!-- DASHBOARD STATS INTEGRADO EN LA PARTE SUPERIOR -->
+<div class="row mb-4">
+  <div class="col-md-3"><div class="dashboard-card bg-white" style="box-shadow:0 2px 8px rgba(0,0,0,.05);"><div class="d-flex justify-content-between"><div><div class="stat-label">Total Pacientes</div><div class="stat-value">{{ total_pacientes }}</div></div><div style="width:50px;height:50px;border-radius:12px;background:#e7f1ff;color:#2d7bd8;display:flex;align-items:center;justify-content:center;"><i class="mdi mdi-account-group"></i></div></div></div></div>
+  <div class="col-md-3"><div class="dashboard-card bg-white" style="box-shadow:0 2px 8px rgba(0,0,0,.05);"><div class="d-flex justify-content-between"><div><div class="stat-label">Nuevos Este Mes</div><div class="stat-value">{{ nuevos_mes }}</div></div><div style="width:50px;height:50px;border-radius:12px;background:#e8f5e9;color:#43a047;display:flex;align-items:center;justify-content:center;"><i class="mdi mdi-account-plus"></i></div></div></div></div>
+  <div class="col-md-3"><div class="dashboard-card bg-white" style="box-shadow:0 2px 8px rgba(0,0,0,.05);"><div class="d-flex justify-content-between"><div><div class="stat-label">Ordenes Pendientes</div><div class="stat-value">{{ ordenes_pendientes }}</div></div><div style="width:50px;height:50px;border-radius:12px;background:#fff3e0;color:#f57c00;display:flex;align-items:center;justify-content:center;"><i class="mdi mdi-clock-outline"></i></div></div></div></div>
+  <div class="col-md-3"><div class="dashboard-card bg-white" style="box-shadow:0 2px 8px rgba(0,0,0,.05);"><div class="d-flex justify-content-between"><div><div class="stat-label">Resultados Pendientes</div><div class="stat-value">{{ resultados_pendientes }}</div></div><div style="width:50px;height:50px;border-radius:12px;background:#fce4ec;color:#e91e63;display:flex;align-items:center;justify-content:center;"><i class="mdi mdi-clipboard-alert-outline"></i></div></div></div></div>
+</div>
 
-  <div class="table-responsive">
-    <table class="table table-hover align-middle"> 
-      <thead class="table-light">
-        <tr>
-          <th>#</th><th>Cédula</th><th>Nombre completo</th><th>Sexo</th>
-          <th>Fecha nacimiento</th><th>Teléfono</th><th>Email</th><th>Dirección</th>
-          <th style="width:160px;">Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for p in pacientes %}
-        <tr>
-          <td>{{ forloop.counter }}</td>
-          <td>{{ p.documento_identidad }}</td>
-          <td>{{ p.nombre_completo }}</td>
-          <td>{{ p.sexo }}</td>
-          <td>{{ p.fecha_nacimiento|date:"Y-m-d" }}</td>
-          <td>{{ p.telefono|default:"-" }}</td>
-          <td>{{ p.email|default:"-" }}</td>
-          <td>{{ p.direccion|default:"-" }}</td>
-          <td class="text-end">
-            <button class="btn btn-sm btn-outline-primary" onclick="editarPaciente({{ p.id }})">
-              <i class="mdi mdi-pencil"></i> Editar
-            </button>
-            <form action="{% url 'paciente_eliminar' p.id %}" method="post" style="display:inline;" onsubmit="return confirm('¿Eliminar este paciente?');">
-              {% csrf_token %}
-              <button type="submit" class="btn btn-sm btn-outline-danger">
-                <i class="mdi mdi-delete-outline"></i> Eliminar
-              </button>
-            </form>
-          </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="9" class="text-center text-muted py-3">No hay pacientes registrados</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<!-- LISTA DE PACIENTES (VISTA PRINCIPAL) -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0">Pacientes registrados</h4>
+  <div class="d-flex gap-2">
+    <form method="get" class="d-flex" style="max-width:320px;">
+      <input type="text" name="q" value="{{ request.GET.q }}" class="form-control form-control-sm me-2" placeholder="Buscar por nombre o cédula">
+      <button type="submit" class="btn btn-sm btn-outline-primary">Buscar</button>
+    </form>
+    <button type="button" class="btn btn-sm btn-primary" onclick="openModalPaciente()">
+      <i class="mdi mdi-account-plus-outline"></i> Nuevo
+    </button>
   </div>
+</div>
+
+<div class="table-responsive">
+  <table class="table table-hover align-middle"> 
+    <thead class="table-light">
+      <tr>
+        <th>#</th><th>Cédula</th><th>Nombre completo</th><th>Sexo</th>
+        <th>Fecha nacimiento</th><th>Teléfono</th><th>Email</th><th>Dirección</th>
+        <th>Historial</th>
+        <th style="width:160px;">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in pacientes %}
+      <tr>
+        <td>{{ forloop.counter }}</td>
+        <td>{{ p.documento_identidad }}</td>
+        <td><a href="{% url 'paciente_historial' p.id %}" class="patient-link">{{ p.nombre_completo }}</a></td>
+        <td>{{ p.sexo }}</td>
+        <td>{{ p.fecha_nacimiento|date:"Y-m-d" }}</td>
+        <td>{{ p.telefono|default:"-" }}</td>
+        <td>{{ p.email|default:"-" }}</td>
+        <td>{{ p.direccion|default:"-" }}</td>
+        <td>
+          <a href="{% url 'paciente_historial' p.id %}" class="btn btn-sm btn-outline-info">
+            <i class="mdi mdi-file-document-outline"></i> Ver
+          </a>
+        </td>
+        <td class="text-end">
+          <button class="btn btn-sm btn-outline-primary" onclick="editarPaciente({{ p.id }})">
+            <i class="mdi mdi-pencil"></i> Editar
+          </button>
+          <form action="{% url 'paciente_eliminar' p.id %}" method="post" style="display:inline;" onsubmit="return confirm('¿Eliminar este paciente?');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-danger">
+              <i class="mdi mdi-delete-outline"></i> Eliminar
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="10" class="text-center text-muted py-3">No hay pacientes registrados</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </div>
 
 <div id="modalPaciente" class="slx-modal" aria-hidden="true" role="dialog">
@@ -146,14 +171,13 @@
 function getCookie(name){const v=`; ${document.cookie}`;const p=v.split(`; ${name}=`);if(p.length===2)return p.pop().split(';').shift();}
 const csrftoken=getCookie('csrftoken');
 
-let currentPacienteId = null; // Variable global para almacenar el ID en modo edición
+let currentPacienteId = null;
 
 function openModalPaciente(data=null, id=null){
   const modal = document.getElementById('modalPaciente');
   const titulo = document.getElementById('titulo-burbuja');
   const form = document.getElementById('formPaciente');
   
-  // 1. Limpiar el formulario y la variable de ID
   form.reset();
   currentPacienteId = null; 
 
@@ -161,7 +185,6 @@ function openModalPaciente(data=null, id=null){
     titulo.textContent = 'Editar Paciente';
     currentPacienteId = id; 
     
-    // Separar nombre_completo
     const nombreCompleto = data.nombre_completo || '';
     const partes = nombreCompleto.trim().split(/\s+/);
     const nombres = partes.shift() || '';
@@ -171,7 +194,6 @@ function openModalPaciente(data=null, id=null){
     form.nombres.value = nombres;
     form.apellidos.value = apellidos;
     form.sexo.value = data.sexo || '';
-    // Corregir formato y manejar NULL/vacío para el input type="date"
     form.fecha_nacimiento.value = data.fecha_nacimiento ? data.fecha_nacimiento.substring(0, 10) : ''; 
     form.telefono.value = data.telefono || '';
     form.email.value = data.email || '';
@@ -183,26 +205,19 @@ function openModalPaciente(data=null, id=null){
 }
 function closeModalPaciente(){document.getElementById('modalPaciente').classList.remove('show');}
 
-
-// 💡 FUNCIÓN CLAVE: Prepara el FormData y elimina el campo de fecha si está vacío.
 function prepareFormData(form) {
     const fd = new FormData(form);
-    
-    // 1. Reconstruir nombre completo
     fd.set('nombre_completo',`${fd.get('nombres')||''} ${fd.get('apellidos')||''}`.trim());
-
-    // 2. SOLUCIÓN AL ERROR DE FECHA: Si la fecha está vacía, la eliminamos del FormData.
     const fechaNacimiento = fd.get('fecha_nacimiento');
     if (!fechaNacimiento || fechaNacimiento.trim() === '') {
-        fd.delete('fecha_nacimiento'); // Esto permite a Django usar NULL si es necesario
+        fd.delete('fecha_nacimiento');
     }
-    
     return fd;
 }
 
 async function guardarPaciente(){
   const form=document.getElementById('formPaciente');
-  const fd = prepareFormData(form); // Usar la nueva función de preparación
+  const fd = prepareFormData(form);
   
   const r=await fetch('/paciente/nuevo/',{method:'POST',headers:{'X-CSRFToken':csrftoken},body:fd});
   const data=await r.json();
@@ -219,7 +234,7 @@ async function editarPaciente(id){
 
 async function guardarCambiosPaciente(id){
   const form=document.getElementById('formPaciente');
-  const fd = prepareFormData(form); // Usar la nueva función de preparación
+  const fd = prepareFormData(form);
 
   const r=await fetch(`/paciente/${id}/actualizar_ajax/`,{method:'POST',headers:{'X-CSRFToken':csrftoken},body:fd});
   const data=await r.json();
@@ -227,9 +242,7 @@ async function guardarCambiosPaciente(id){
   else alert(data.message||'Error al guardar cambios');
 }
 
-// 🚀 FUNCIÓN CONTROLADORA ÚNICA PARA EL BOTÓN GUARDAR
 function handleGuardarClick() {
-    // Validar campos requeridos antes de enviar (cédula y nombres)
     const form = document.getElementById('formPaciente');
     if (!form.documento_identidad.value || !form.nombres.value) {
         alert("Por favor, complete los campos de Cédula y Nombres.");
@@ -237,15 +250,12 @@ function handleGuardarClick() {
     }
     
     if (currentPacienteId) {
-        // Modo Edición
         guardarCambiosPaciente(currentPacienteId);
     } else {
-        // Modo Nuevo
         guardarPaciente();
     }
 }
 
-// 💡 ASIGNAR EL LISTENER AL BOTÓN AL CARGAR LA PÁGINA
 document.addEventListener('DOMContentLoaded', () => {
     const btnGuardar = document.getElementById('btnGuardarPaciente');
     if (btnGuardar) {

@@ -142,6 +142,13 @@
           </li>
           {% endif %}
 
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'proforma_lista' %}">
+              <i class="mdi mdi-file-document-outline menu-icon"></i>
+              <span class="menu-title">Proformas</span>
+            </a>
+          </li>
+
           {% if request.user.is_superuser or perms.configuracion.mod_precios %}
           <li class="nav-item">
             <a class="nav-link" href="#">
@@ -151,8 +158,6 @@
           </li>
           {% endif %}
 
-          <li class="nav-item nav-category">Sistema</li>
-
           {% if request.user.is_superuser or perms.configuracion.mod_pacientes %}
           <li class="nav-item">
             <a class="nav-link" href="{% url 'pacientes_lista' %}">
@@ -161,6 +166,8 @@
             </a>
           </li>
           {% endif %}
+
+          <li class="nav-item nav-category">Sistema</li>
 
           {% if request.user.is_superuser or perms.configuracion.mod_configuracion %}
           <li class="nav-item">
@@ -178,6 +185,15 @@
       <!-- CONTENIDO -->
       <div class="main-panel">
         <div class="content-wrapper">
+          
+{% if messages %}
+{% for message in messages %}
+<div class="alert alert-{% if message.tags == 'success' %}success{% elif message.tags == 'error' %}danger{% else %}info{% endif %}" style="padding:12px 20px;margin-bottom:15px;border-radius:8px;{% if message.tags == 'success' %}background:#d4edda;color:#155724;{% elif message.tags == 'error' %}background:#f8d7da;color:#721c24;{% else %}background:#d1ecf1;color:#0c5460;{% endif %}">
+  {{ message }}
+</div>
+{% endfor %}
+{% endif %}
+
           {% block content %}{% endblock %}
         </div>
 

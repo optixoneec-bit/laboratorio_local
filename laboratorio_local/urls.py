@@ -4,6 +4,7 @@ from django.contrib.auth import views as auth_views
 from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import RedirectView
+from laboratorio import views as laboratorio_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -11,6 +12,7 @@ urlpatterns = [
     path('accounts/logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),
     path('', include('laboratorio.urls')),
     path('configuracion/', include('configuracion.urls')),
+    path('simulador/', laboratorio_views.simulador, name='simulador'),
     path('', RedirectView.as_view(url='/accounts/login/', permanent=True)),
 ]
 

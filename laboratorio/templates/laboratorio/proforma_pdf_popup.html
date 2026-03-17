@@ -1,0 +1,52 @@
+{% extends "base_star.html" %}
+{% load static %}
+
+{% block title %}Proforma - {{ proforma.numero_proforma }}{% endblock %}
+
+{% block extra_head %}
+<meta http-equiv="refresh" content="0;url={{ pdf_url }}">
+<style>
+.slx-card{
+    background:#fff;
+    border-radius:12px;
+    box-shadow:0 2px 6px rgba(0,0,0,.05);
+    padding:40px;
+    text-align:center;
+    max-width:500px;
+    margin:50px auto;
+}
+.slx-card h2{
+    color:#1A237E;
+    margin-bottom:20px;
+}
+.slx-card p{
+    color:#666;
+    margin-bottom:20px;
+}
+.btn-purple{
+    background:#2b18ff!important;
+    color:#fff!important;
+    border-radius:10px!important;
+    font-weight:600!important;
+    padding:12px 24px;
+    text-decoration:none;
+    display:inline-block;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="slx-card">
+    <h2>Proforma {{ proforma.numero_proforma }}</h2>
+    <p>Abriendo PDF en nueva ventana...</p>
+    <p>Si no se abre, haz clic en el botón:</p>
+    <a href="{{ pdf_url }}" target="_blank" class="btn-purple">Abrir PDF</a>
+    <br><br>
+    <a href="{% url 'proforma_lista' %}">← Volver a la lista</a>
+</div>
+
+<script>
+// Abrir PDF en nueva ventana automáticamente
+window.open('{{ pdf_url }}', '_blank');
+</script>
+{% endblock %}

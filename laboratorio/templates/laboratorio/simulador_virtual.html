@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Virtual de Equipo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .card-header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            padding: 20px 30px;
+            color: white;
+        }
+        
+        .card-header h2 {
+            font-size: 1.5rem;
+        }
+        
+        .card-body {
+            padding: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 14px 18px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s;
+            background: #f8f9fa;
+        }
+        
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        /* Estilo para campos de solo lectura */
+        .form-group input[readonly] {
+            background: #e9ecef;
+            color: #495057;
+            cursor: default;
+            border-color: #ced4da;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 14px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            width: 100%;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .resultado {
+            margin-top: 30px;
+        }
+        
+        /* Grid de tarjetas uniformes para resultados */
+        .result-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        @media (max-width: 768px) {
+            .result-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .result-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .result-card {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .result-card label {
+            display: block;
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .result-card span {
+            display: block;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .error {
+            background: #fee;
+            border: 2px solid #f66;
+            border-radius: 10px;
+            padding: 20px;
+            color: #c00;
+            text-align: center;
+        }
+        
+        .hl7-raw {
+            background: #1e1e1e;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .hl7-raw h4 {
+            color: #4facfe;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .hl7-raw pre {
+            color: #d4d4d4;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            word-break: break-all;
+            line-height: 1.6;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .hl7-raw .msa { color: #4ec9b0; }
+        .hl7-raw .msh { color: #569cd6; }
+        .hl7-raw .qrd { color: #ce9178; }
+        .hl7-raw .pid { color: #9cdcfe; }
+        
+        .info-box {
+            background: #e8f4fd;
+            border: 2px solid #2196f3;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            color: #1565c0;
+            font-size: 0.95rem;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #667eea;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧪 Simulador Virtual de Equipo</h1>
+            <p>Consulta órdenes en el sistema como lo haría un equipo médico real</p>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h2>🔍 Consulta de Orden</h2>
+            </div>
+            <div class="card-body">
+                <div class="info-box">
+                    <strong>ℹ️ Información:</strong> Este simulador consulta la orden en la base de datos del sistema,
+                    extrae automáticamente los datos del paciente y envía la trama HL7 al listener en el puerto 2575.
+                    Los datos del paciente se obtienen exclusivamente de la base de datos.
+                </div>
+                
+                <form method="post" action="{% url 'simulador_virtual' %}">
+                    {% csrf_token %}
+                    
+                    <!-- Número de Orden - ÚNICO CAMPO EDITABLE -->
+                    <div class="form-group">
+                        <label for="numero_orden">Número de Orden *</label>
+                        <input 
+                            type="text" 
+                            id="numero_orden" 
+                            name="numero_orden" 
+                            placeholder="Ej: 001000, 001001, 001002..."
+                            value="{{ numero_orden|default:'' }}"
+                            required
+                        >
+                    </div>
+                    
+                    <!-- Datos del Paciente (SOLO LECTURA - vienen de la DB) -->
+                    <!-- Grid uniforme de tarjetas con borde lateral azul -->
+                    <div class="result-grid">
+                        <div class="result-card">
+                            <label>Nombre del Paciente</label>
+                            <span>{{ nombre_paciente|default:'—' }}</span>
+                        </div>
+                        
+                        <div class="result-card">
+                            <label>Documento de Identidad</label>
+                            <span>{{ documento|default:'—' }}</span>
+                        </div>
+                        
+                        <div class="result-card">
+                            <label>Fecha de Nacimiento</label>
+                            <span>{{ fecha_nacimiento|default:'—' }}</span>
+                        </div>
+                        
+                        <div class="result-card">
+                            <label>Edad</label>
+                            <span>{% if edad %}{{ edad }} años{% else %}—{% endif %}</span>
+                        </div>
+                        
+                        <div class="result-card">
+                            <label>Sexo</label>
+                            <span>
+                                {% if sexo == 'M' %}Masculino
+                                {% elif sexo == 'F' %}Femenino
+                                {% else %}—
+                                {% endif %}
+                            </span>
+                        </div>
+                        
+                        <div class="result-card">
+                            <label>Médico Tratante</label>
+                            <span>{{ medico|default:'—' }}</span>
+                        </div>
+                        
+                        <div class="result-card">
+                            <label>Departamento</label>
+                            <span>{{ departamento|default:'—' }}</span>
+                        </div>
+                        
+                        <div class="result-card">
+                            <label>Tipo de Paciente</label>
+                            <span>{{ tipo_paciente|default:'Rutina' }}</span>
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="btn">Consultar y Enviar a Equipo</button>
+                </form>
+                
+                {% if error %}
+                    <div class="resultado">
+                        <div class="error">
+                            <strong>⚠️ Error:</strong> {{ error }}
+                        </div>
+                    </div>
+                {% endif %}
+
+                {% if success %}
+                    <div class="resultado" style="margin-top: 20px;">
+                        <div style="background: #d4edda; border: 2px solid #28a745; border-radius: 10px; padding: 20px; color: #155724; text-align: center;">
+                            <strong>✅ Mensaje HL7 enviado exitosamente al Listener</strong><br>
+                            <small>El Listener procesó la consulta y devolvió los datos del paciente.</small>
+                        </div>
+                    </div>
+                {% endif %}
+                
+                {% if respuesta_raw %}
+                    <div class="resultado">
+                        <div class="hl7-raw">
+                            <h4>📨 Mensaje HL7 (Respuesta del Listener)</h4>
+                            <pre>{{ respuesta_raw }}</pre>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px; color: white; opacity: 0.7;">
+            <small>Laboratorio - Sistema de Gestión</small>
+        </div>
+    </div>
+</body>
+</html>

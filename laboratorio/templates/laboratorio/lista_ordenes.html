@@ -3,6 +3,8 @@
 {% block title %}Órdenes{% endblock %}
 
 {% block extra_head %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
   .slx-card{
       background:#fff;
@@ -30,23 +32,245 @@
       padding-bottom: 6px !important;
       border-radius: 10px !important;
   }
+  
+  /* Estilos para filtros de fecha */
+  .filtros-fecha {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+  }
+  .filtros-fecha label {
+      margin-bottom: 0;
+      font-weight: 500;
+      color: #6c757d;
+  }
+  .filtros-fecha input[type="date"] {
+      padding: 5px 10px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      font-size: 0.875rem;
+  }
+  
+  /* Gráficos */
+  .chart-container {
+      position: relative;
+      height: 250px;
+  }
+
+  /* KPI Cards - Estilo profesional similar a Pacientes */
+  .kpi-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.05);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+  }
+  .kpi-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,.1);
+  }
+  .kpi-card .kpi-value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #2c3e50;
+      line-height: 1;
+  }
+  .kpi-card .kpi-label {
+      font-size: 0.85rem;
+      color: #6c757d;
+      margin-top: 5px;
+  }
+  .kpi-card .kpi-icon {
+      width: 50px;
+      height: 50px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+  }
+  .kpi-total .kpi-icon { background: #e7f1ff; color: #2d7bd8; }
+  .kpi-pendiente .kpi-icon { background: #fff3e0; color: #f57c00; }
+  .kpi-proceso .kpi-icon { background: #e3f2fd; color: #1976d2; }
+  .kpi-validacion .kpi-icon { background: #fce4ec; color: #c2185b; }
+  .kpi-validado .kpi-icon { background: #e8f5e9; color: #43a047; }
+  
+  /* Sección de estadísticas colapsable */
+  .stats-section {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.5s ease-out, opacity 0.3s ease-out;
+      opacity: 0;
+  }
+  .stats-section.show {
+      max-height: 1000px;
+      opacity: 1;
+  }
+  
+  /* Botón Ver Estadísticas */
+  .btn-toggle-stats {
+      transition: all 0.3s ease;
+  }
+  .btn-toggle-stats .mdi {
+      transition: transform 0.3s ease;
+  }
+  .btn-toggle-stats.active .mdi-chevron-down {
+      transform: rotate(180deg);
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="slx-card mt-4">
+<!-- KPI Cards - Totales (Estilo profesional) -->
+<div class="row mb-4">
+  <div class="col-md-2 col-6 mb-3">
+    <div class="kpi-card kpi-total">
+      <div class="d-flex justify-content-between">
+        <div>
+          <div class="kpi-value">{{ kpis.total }}</div>
+          <div class="kpi-label">Total Órdenes</div>
+        </div>
+        <div class="kpi-icon"><i class="mdi mdi-file-document-multiple"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-2 col-6 mb-3">
+    <div class="kpi-card kpi-pendiente">
+      <div class="d-flex justify-content-between">
+        <div>
+          <div class="kpi-value">{{ kpis.pendiente }}</div>
+          <div class="kpi-label">Pendientes</div>
+        </div>
+        <div class="kpi-icon"><i class="mdi mdi-clock-outline"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-2 col-6 mb-3">
+    <div class="kpi-card kpi-proceso">
+      <div class="d-flex justify-content-between">
+        <div>
+          <div class="kpi-value">{{ kpis.en_proceso }}</div>
+          <div class="kpi-label">En Proceso</div>
+        </div>
+        <div class="kpi-icon"><i class="mdi mdi-progress-clock"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-2 col-6 mb-3">
+    <div class="kpi-card kpi-validacion">
+      <div class="d-flex justify-content-between">
+        <div>
+          <div class="kpi-value">{{ kpis.en_validacion }}</div>
+          <div class="kpi-label">En Validación</div>
+        </div>
+        <div class="kpi-icon"><i class="mdi mdi-clipboard-check-outline"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-2 col-6 mb-3">
+    <div class="kpi-card kpi-validado">
+      <div class="d-flex justify-content-between">
+        <div>
+          <div class="kpi-value">{{ kpis.validado }}</div>
+          <div class="kpi-label">Validados</div>
+        </div>
+        <div class="kpi-icon"><i class="mdi mdi-check-circle-outline"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-2 col-6 mb-3 d-flex align-items-center">
+    <button type="button" class="btn btn-outline-primary btn-toggle-stats w-100" id="toggleStatsBtn">
+      <i class="mdi mdi-chart-bar me-1"></i>
+      <span>Ver Estadísticas</span>
+    </button>
+  </div>
+</div>
 
+<!-- Sección de Estadísticas (colapsable) -->
+<div class="stats-section mb-4" id="statsSection">
+  <!-- Filtros de fecha dentro de la sección colapsable -->
+  <div class="slx-card mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="mb-0"><i class="mdi mdi-filter-variant me-2"></i>Filtros por fecha</h5>
+    </div>
+    
+    <form method="get" class="d-flex flex-wrap filtros-fecha">
+      <label for="desde">Desde:</label>
+      <input type="date" 
+             name="desde" 
+             id="desde" 
+             value="{{ desde }}"
+             class="form-control form-control-sm">
+      
+      <label for="hasta">Hasta:</label>
+      <input type="date" 
+             name="hasta" 
+             id="hasta" 
+             value="{{ hasta }}"
+             class="form-control form-control-sm">
+      
+      {% if query %}
+      <input type="hidden" name="q" value="{{ query }}">
+      {% endif %}
+      
+      <button type="submit" class="btn btn-sm btn-outline-secondary">
+        <i class="mdi mdi-filter-variant"></i> Filtrar
+      </button>
+      
+      {% if desde or hasta %}
+      <a href="{% url 'lista_ordenes' %}{% if query %}?q={{ query }}{% endif %}" class="btn btn-sm btn-link text-danger">
+        <i class="mdi mdi-close"></i> Limpiar
+      </a>
+      {% endif %}
+    </form>
+  </div>
+
+  <!-- Gráficos Analítica -->
+  <div class="row">
+    <!-- Gráfico de Barras: Órdenes por Día -->
+    <div class="col-lg-6 mb-4">
+      <div class="slx-card h-100">
+        <h5 class="mb-3"><i class="mdi mdi-chart-bar me-2"></i>Órdenes por día</h5>
+        <div class="chart-container">
+          <canvas id="chartDaily"></canvas>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Gráfico de Pastel: Distribución por Estado -->
+    <div class="col-lg-6 mb-4">
+      <div class="slx-card h-100">
+        <h5 class="mb-3"><i class="mdi mdi-chart-pie me-2"></i>Distribución por estado</h5>
+        <div class="chart-container">
+          <canvas id="chartStatus"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filtros y Buscador -->
+<div class="slx-card mt-4">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <h4 class="mb-0">Órdenes registradas</h4>
 
-    <div class="d-flex gap-2">
-
+    <div class="d-flex gap-2 align-items-center">
+      
+      <!-- Buscador -->
       <form method="get" class="d-flex">
         <input type="text"
                name="q"
                value="{{ query }}"
                class="form-control form-control-sm me-2 input-buscar"
                placeholder="Buscar por nombre, cédula o número de orden">
+        
+        {% if desde %}
+        <input type="hidden" name="desde" value="{{ desde }}">
+        {% endif %}
+        {% if hasta %}
+        <input type="hidden" name="hasta" value="{{ hasta }}">
+        {% endif %}
+        
         <button type="submit" class="btn btn-sm btn-outline-primary">Buscar</button>
       </form>
 
@@ -134,4 +358,119 @@
   </div>
 
 </div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Colores para los gráficos
+  const colors = {
+    primary: '#4b49ac',
+    secondary: '#7978e9',
+    success: '#2ed573',
+    warning: '#ffc107',
+    danger: '#ff4757',
+    info: '#1e90ff',
+    dark: '#2f3542'
+  };
+  
+  const statusColors = {
+    'Pendiente': '#ffc107',
+    'En proceso': '#1e90ff',
+    'En validación': '#ff6b81',
+    'Validado': '#2ed573'
+  };
+  
+  // Datos del servidor
+  const chartDailyData = {{ chart_daily|safe }};
+  const chartStatusData = {{ chart_status|safe }};
+  
+  // Gráfico de Barras: Órdenes por día
+  const ctxDaily = document.getElementById('chartDaily').getContext('2d');
+  new Chart(ctxDaily, {
+    type: 'bar',
+    data: {
+      labels: chartDailyData.labels,
+      datasets: [{
+        label: 'Órdenes',
+        data: chartDailyData.data,
+        backgroundColor: colors.primary,
+        borderColor: colors.primary,
+        borderWidth: 1,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            stepSize: 1
+          }
+        }
+      }
+    }
+  });
+  
+  // Gráfico de Pastel: Distribución por estado
+  const ctxStatus = document.getElementById('chartStatus').getContext('2d');
+  const statusBgColors = chartStatusData.labels.map(label => statusColors[label] || colors.secondary);
+  
+  new Chart(ctxStatus, {
+    type: 'pie',
+    data: {
+      labels: chartStatusData.labels,
+      datasets: [{
+        data: chartStatusData.data,
+        backgroundColor: statusBgColors,
+        borderWidth: 2,
+        borderColor: '#fff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: {
+            usePointStyle: true,
+            padding: 15
+          }
+        }
+      }
+    }
+  });
+
+  // Toggle de estadísticas
+  const toggleBtn = document.getElementById('toggleStatsBtn');
+  const statsSection = document.getElementById('statsSection');
+  
+  if (toggleBtn && statsSection) {
+    toggleBtn.addEventListener('click', function() {
+      statsSection.classList.toggle('show');
+      toggleBtn.classList.toggle('active');
+      
+      const span = toggleBtn.querySelector('span');
+      const icon = toggleBtn.querySelector('.mdi-chart-bar');
+      
+      if (statsSection.classList.contains('show')) {
+        span.textContent = 'Ocultar Estadísticas';
+        toggleBtn.classList.remove('btn-outline-primary');
+        toggleBtn.classList.add('btn-primary');
+      } else {
+        span.textContent = 'Ver Estadísticas';
+        toggleBtn.classList.remove('btn-primary');
+        toggleBtn.classList.add('btn-outline-primary');
+      }
+    });
+  }
+</script>
 {% endblock %}

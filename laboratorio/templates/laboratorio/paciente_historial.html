@@ -1,0 +1,88 @@
+{% extends "base_star.html" %}
+{% load static %}
+{% block title %}Historial Medico - {{ paciente.nombre_completo }}{% endblock %}
+
+{% block extra_head %}
+<style>
+.patient-header{background:linear-gradient(135deg,#2d7bd8,#1a5bb8);color:white;border-radius:12px;padding:24px;margin-bottom:24px;}
+.patient-info{display:flex;gap:40px;flex-wrap:wrap;}
+.info-item{opacity:0.95;}
+.info-label{font-size:.75rem;text-transform:uppercase;opacity:0.8;}
+.info-value{font-size:1.1rem;font-weight:600;}
+.orden-card{border-radius:12px;border:1px solid #e9ecef;margin-bottom:16px;transition:box-shadow .2s;}
+.orden-card:hover{box-shadow:0 4px 12px rgba(0,0,0,.1);}
+.orden-header{background:#f8f9fa;padding:12px 16px;border-radius:12px 12px 0 0;border-bottom:1px solid #e9ecef;}
+.estado-badge{padding:4px 10px;border-radius:20px;font-size:.75rem;font-weight:600;}
+.estado-pendiente{background:#e9ecef;color:#6c757d;}
+.estado-proceso{background:#cfe2ff;color:#0d6efd;}
+.estado-validacion{background:#fff3cd;color:#ffc107;}
+.estado-validado{background:#d1e7dd;color:#198754;}
+.resultado-row{border-bottom:1px solid #f0f0f0;padding:10px 0;}
+.resultado-row:last-child{border-bottom:none;}
+.parametro{font-weight:600;color:#2c3e50;}
+.valor{font-weight:700;}
+.valor-ok{color:#198754;}
+.valor-alerta{color:#dc3545;}
+.referencia{color:#6c757d;font-size:.85rem;}
+.timeline-item{position:relative;padding-left:30px;padding-bottom:20px;border-left:2px solid #e9ecef;}
+.timeline-item::before{content:'';position:absolute;left:-7px;top:0;width:12px;height:12px;border-radius:50%;background:#2d7bd8;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="patient-header">
+  <div class="d-flex justify-content-between align-items-start">
+    <div>
+      <h2 style="font-weight:700;margin-bottom:4px;"><i class="mdi mdi-account" style="margin-right:10px;"></i>{{ paciente.nombre_completo }}</h2>
+      <p class="mb-0" style="opacity:0.9;">Documento: <strong>{{ paciente.documento_identidad }}</strong></p>
+    </div>
+    <a href="{% url 'pacientes_dashboard' %}" class="btn btn-light"><i class="mdi mdi-arrow-left"></i> Volver</a>
+  </div>
+  <div class="patient-info mt-3">
+    <div class="info-item"><div class="info-label">Sexo</div><div class="info-value">{% if paciente.sexo == 'M' %}Masculino{% else %}Femenino{% endif %}</div></div>
+    <div class="info-item"><div class="info-label">Fecha Nacimiento</div><div class="info-value">{% if paciente.fecha_nacimiento %}{{ paciente.fecha_nacimiento|date:"d/m/Y" }}{% else %}—{% endif %}</div></div>
+    <div class="info-item"><div class="info-label">Telefono</div><div class="info-value">{{ paciente.telefono|default:"—" }}</div></div>
+    <div class="info-item"><div class="info-label">Email</div><div class="info-value">{{ paciente.email|default:"—" }}</div></div>
+  </div>
+</div>
+
+<h4 style="font-weight:600;color:#2c3e50;margin-bottom:16px;"><i class="mdi mdi-history" style="margin-right:8px;"></i>Historial de Ordenes ({{ ordenes|length }})</h4>
+
+{% for orden in ordenes %}
+<div class="orden-card">
+  <div class="orden-header d-flex justify-content-between align-items-center">
+    <div>
+      <strong>Orden #{{ orden.numero_orden }}</strong>
+      <span class="ms-2 text-muted">{{ orden.fecha|date:"d/m/Y H:i" }}</span>
+    </div>
+    <span class="estado-badge estado-{{ orden.estado|lower|slugify }}">{{ orden.estado }}</span>
+  </div>
+  <div class="p-3">
+    {% for oe in orden.examenes.all %}
+    <div class="mb-3">
+      <strong style="color:#2d7bd8;">{{ oe.examen.nombre }}</strong>
+      <span class="badge bg-secondary">{{ oe.examen.codigo }}</span>
+    </div>
+    <table class="table table-sm mb-0">
+      <thead><tr><th>Parametro</th><th>Resultado</th><th>Unidad</th><th>Referencia</th><th>Estado</th></tr></thead>
+      <tbody>
+        {% for r in oe.resultados.all %}
+        <tr class="resultado-row">
+          <td class="parametro">{{ r.parametro }}</td>
+          <td class="valor {% if r.fuera_de_rango %}valor-alerta{% else %}valor-ok{% endif %}">{{ r.valor|default:"—" }}</td>
+          <td>{{ r.unidad|default:"—" }}</td>
+          <td class="referencia">{{ r.referencia|default:"—" }}</td>
+          <td>{% if r.validado %}<span class="text-success"><i class="mdi mdi-check"></i> Validado</span>{% else %}<span class="text-muted">Pendiente</span>{% endif %}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-muted text-center">Sin resultados registrados</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endfor %}
+  </div>
+</div>
+{% empty %}
+<div class="alert alert-info">No hay ordenes registradas para este paciente.</div>
+{% endfor %}
+{% endblock %}
