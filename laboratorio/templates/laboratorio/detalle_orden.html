@@ -83,27 +83,39 @@
 
     <tbody>
       {% for ex in examenes %}
-        {% for r in ex.resultados.all %}
-        <tr>
-          <td>{{ ex.examen.nombre }}</td>
-          <td>{{ r.parametro }}</td>
-          <td>{{ r.valor }}</td>
-          <td>{{ r.unidad }}</td>
-          <td>{{ r.referencia }}</td>
+        {% if ex.resultados.all %}
+          {% for r in ex.resultados.all %}
+          <tr>
+            <td>{{ ex.examen.nombre }}</td>
+            <td>{{ r.parametro }}</td>
+            <td>{{ r.valor }}</td>
+            <td>{{ r.unidad }}</td>
+            <td>{{ r.referencia }}</td>
 
-          <td class="text-end">
-            {% if r.validado %}
-              <span style="color:#28a745; font-weight:700;">✔</span>
-            {% else %}
-              <span style="color:#6c757d;">—</span>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
+            <td class="text-end">
+              {% if r.validado %}
+                <span style="color:#28a745; font-weight:700;">✔</span>
+              {% else %}
+                <span style="color:#6c757d;">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <td>{{ ex.examen.nombre }}</td>
+            <td colspan="4" class="text-muted">Sin resultados</td>
+            <td class="text-end">
+              <span class="badge bg-{% if ex.estado == 'Validado' %}success{% elif ex.estado == 'En proceso' %}primary{% else %}warning{% endif %}">
+                {{ ex.estado|default:"Pendiente" }}
+              </span>
+            </td>
+          </tr>
+        {% endif %}
       {% empty %}
       <tr>
         <td colspan="6" class="text-center text-muted py-3">
-          Sin resultados registrados
+          Sin exámenes registrados
         </td>
       </tr>
       {% endfor %}

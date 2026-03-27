@@ -229,6 +229,10 @@ class InformeCanvas:
             ("Estado", self.orden.estado),
         ]
 
+        # Agregar médico si existe
+        if self.orden.medico:
+            datos_orden.append(("Médico", self.orden.medico))
+
         if validador_nombre:
             datos_orden.append(("Validado por", validador_nombre))
 

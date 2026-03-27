@@ -19,6 +19,7 @@ urlpatterns = [
     path('ordenes/nueva/', views.nueva_orden, name='nueva_orden'),
     path('ordenes/<int:orden_id>/', views.detalle_orden, name='detalle_orden'),
     path('ordenes/<int:orden_id>/resultados/', views.resultados_orden, name='resultados_orden'),
+    path('ordenes/<int:orden_id>/eliminar/', views.orden_eliminar_ajax, name='orden_eliminar'),
 
     # -----------------------------
     # Pacientes (AJAX)

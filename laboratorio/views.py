@@ -552,8 +552,43 @@ def orden_etiquetas_pdf(request, orden_id):
 @login_required
 def detalle_orden(request, orden_id):
     orden = get_object_or_404(Orden, id=orden_id)
-    examenes = orden.examenes.all()
-    return render(request, 'laboratorio/detalle_orden.html', {'orden': orden, 'examenes': examenes})
+    examenes = orden.examenes.select_related('examen').prefetch_related('resultados').all()
+    
+    # Debug: verificar datos
+    print("=== DEBUG DETALLE ORDEN ===")
+    print(f"Orden: {orden.numero_orden}")
+    print(f"Exámenes en orden: {examenes.count()}")
+    for ex in examenes:
+        print(f"  - OrdenExamen ID: {ex.id}")
+        print(f"    Examen: {ex.examen.nombre if ex.examen else 'SIN EXAMEN'}")
+        print(f"    Resultados: {ex.resultados.count()}")
+        for r in ex.resultados.all():
+            print(f"      * {r.parametro}: {r.valor}")
+    
+    # Calcular edad
+    edad = None
+    if orden.paciente.fecha_nacimiento:
+        from datetime import date
+        today = date.today()
+        birth_date = orden.paciente.fecha_nacimiento
+        edad = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+    
+    return render(request, 'laboratorio/detalle_orden.html', {'orden': orden, 'examenes': examenes, 'edad': edad})
+
+
+@login_required
+def orden_eliminar_ajax(request, orden_id):
+    """Elimina una orden (solo para admins)"""
+    if not (request.user.is_superuser or request.user.is_staff or request.user.has_perm('configuracion.mod_configuracion')):
+        return JsonResponse({'status': 'error', 'message': 'No tienes permiso para eliminar órdenes'}, status=403)
+    
+    if request.method == 'POST':
+        orden = get_object_or_404(Orden, id=orden_id)
+        numero = orden.numero_orden
+        orden.delete()
+        return JsonResponse({'status': 'ok', 'message': f'Orden {numero} eliminada correctamente'})
+    
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
 
 
 @login_required
@@ -691,14 +726,23 @@ def catalogo_importar_excel(request):
         path = default_storage.save(f"tmp/{file.name}", file)
         full_path = default_storage.path(path)
         df = pd.read_excel(full_path)
+        
+        # Normalizar nombres de columnas a minúsculas para evitar problemas de mayúsculas/tildes
+        df.columns = df.columns.str.lower().str.strip().str.replace(' ', '_').str.replace('á', 'a').str.replace('é', 'e').str.replace('í', 'i').str.replace('ó', 'o').str.replace('ú', 'u')
+        
         for _, row in df.iterrows():
+            # Buscar columna muestra (puede ser 'muestra' o 'tipo_de_muestra')
+            muestra = ''
+            if 'muestra' in row and pd.notna(row['muestra']):
+                muestra = str(row['muestra']).strip()
+            
             Examen.objects.update_or_create(
-                codigo=str(row['Código']).strip(),
+                codigo=str(row['codigo']).strip(),
                 defaults={
-                    'nombre': str(row['Nombre']).strip(),
-                    'area': str(row['Área']).strip(),
-                    'precio': float(row['Precio']),
-                    'muestra': str(row.get('Tipo de Muestra', '')).strip() if 'Tipo de Muestra' in row else '',
+                    'nombre': str(row['nombre']).strip(),
+                    'area': str(row['area']).strip(),
+                    'precio': float(row['precio']) if pd.notna(row['precio']) else 0.0,
+                    'muestra': muestra,
                     'creado_por': request.user,
                 }
             )
@@ -746,10 +790,11 @@ def catalogo_exportar(request):
         return HttpResponse("No hay datos para exportar.", content_type="text/plain")
 
     df = pd.DataFrame(list(examenes))
+    # Renombrar columnas a formato legible para Excel
+    df.columns = ['Código', 'Nombre', 'Área', 'Tipo de Muestra', 'Precio']
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = 'attachment; filename=catalogo_principal.xlsx'
     df.to_excel(response, index=False)
-    response['Content-Disposition'] = 'attachment; filename=catalogo_principal.xlsx'
     return response
 
 
@@ -2332,13 +2377,16 @@ def proforma_nueva(request):
 @login_required
 def proforma_pdf(request, proforma_id):
     """
-    Genera el PDF de la proforma usando ReportLab.
+    Genera el PDF de la proforma usando ReportLab con diseño profesional.
     """
     from io import BytesIO
     from reportlab.lib.pagesizes import letter
     from reportlab.pdfgen import canvas
     from reportlab.lib.units import mm
     from reportlab.lib import colors
+    from reportlab.lib.utils import ImageReader
+    from django.contrib.staticfiles.storage import staticfiles_storage
+    import os
     
     proforma = get_object_or_404(Proforma, id=proforma_id)
     examenes = proforma.examenes.select_related('examen').all()
@@ -2347,70 +2395,170 @@ def proforma_pdf(request, proforma_id):
     c = canvas.Canvas(buffer, pagesize=letter)
     width, height = letter
     
-    # Encabezado
-    c.setFont("Helvetica-Bold", 18)
-    c.drawString(50, height - 50, "PROFORMA")
+    # Colores
+    COLOR_PRIMARY = colors.HexColor('#2C3E50')
+    COLOR_SECUNDARY = colors.HexColor('#3498DB')
+    COLOR_LIGHT = colors.HexColor('#ECF0F1')
+    COLOR_TEXT = colors.HexColor('#2C3E50')
     
+    # ===== ENCABEZADO CON LOGO CENTRADO =====
+    logo_width = 200
+    logo_height = 80
+    logo_x = (width - logo_width) / 2  # Centrar logo
+    logo_y = height - 50 - logo_height  # Más arriba, sin espacio en blanco
+    
+    # Intentar cargar el logo
+    from django.conf import settings
+    full_logo_path = os.path.join(settings.BASE_DIR, 'laboratorio', 'static', 'laboratorio', 'img', 'logo_confianza.png')
+    if os.path.exists(full_logo_path):
+        c.drawImage(full_logo_path, logo_x, logo_y, width=logo_width, height=logo_height, preserveAspectRatio=True)
+    
+    # Título debajo del logo, alineado a la izquierda
+    titulo_y = logo_y - 18
+    c.setFont("Helvetica-Bold", 20)
+    c.setFillColor(COLOR_PRIMARY)
+    c.drawString(50, titulo_y, "PROFORMA")
+    
+    # Número de proforma
+    numero_y = titulo_y - 16
+    c.setFont("Helvetica", 11)
+    c.setFillColor(COLOR_TEXT)
+    c.drawString(50, numero_y, f"N° {proforma.numero_proforma}")
+    
+    # Fechas a la derecha
+    fecha_y = numero_y
     c.setFont("Helvetica", 10)
-    c.drawString(50, height - 70, f"Número: {proforma.numero_proforma}")
-    c.drawString(50, height - 85, f"Fecha: {proforma.fecha_creacion.strftime('%d/%m/%Y')}")
-    c.drawString(50, height - 100, f"Válido hasta: {proforma.fecha_vencimiento.strftime('%d/%m/%Y')}")
+    c.setFillColor(COLOR_TEXT)
+    c.drawRightString(width - 50, fecha_y, f"Fecha: {proforma.fecha_creacion.strftime('%d/%m/%Y')}")
+    c.drawRightString(width - 50, fecha_y - 14, f"Válido hasta: {proforma.fecha_vencimiento.strftime('%d/%m/%Y')}")
     
-    # Datos del paciente
+    # Línea separadora
+    linea_y = fecha_y - 20
+    c.setLineWidth(2)
+    c.setStrokeColor(COLOR_SECUNDARY)
+    c.line(50, linea_y, width - 50, linea_y)
+    
+    # ===== DATOS DEL PACIENTE (en recuadro) =====
+    y = linea_y - 20
+    
+    # Fondo del recuadro
+    c.setFillColor(COLOR_LIGHT)
+    c.rect(50, y - 55, width - 100, 65, fill=True, stroke=False)
+    
     c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, height - 130, "DATOS DEL PACIENTE")
-    c.setFont("Helvetica", 10)
-    c.drawString(50, height - 150, f"Paciente: {proforma.paciente.nombre_completo}")
-    c.drawString(50, height - 165, f"Documento: {proforma.paciente.documento_identidad}")
-    if proforma.medico:
-        c.drawString(50, height - 180, f"Médico: {proforma.medico}")
+    c.setFillColor(COLOR_PRIMARY)
+    c.drawString(60, y - 5, "DATOS DEL PACIENTE")
     
-    # Tabla de exámenes
-    y = height - 220
+    c.setFont("Helvetica", 10)
+    c.setFillColor(COLOR_TEXT)
+    c.drawString(60, y - 22, f"Paciente: {proforma.paciente.nombre_completo}")
+    c.drawString(60, y - 37, f"Documento: {proforma.paciente.documento_identidad}")
+    if proforma.medico:
+        c.drawString(60, y - 52, f"Médico: {proforma.medico}")
+    
+    # ===== TABLA DE EXÁMENES =====
+    y = y - 80
     
     # Encabezado de tabla
+    c.setFillColor(COLOR_PRIMARY)
+    c.rect(50, y - 5, width - 100, 22, fill=True, stroke=False)
+    
     c.setFont("Helvetica-Bold", 10)
-    c.drawString(50, y, "Código")
+    c.setFillColor(colors.white)
+    c.drawString(55, y + 2, "Código")
+    c.drawString(120, y + 2, "Examen")
     if proforma.mostrar_precios:
-        c.drawString(120, y, "Examen")
-        c.drawString(350, y, "Precio")
-    else:
-        c.drawString(120, y, "Examen")
+        c.drawRightString(width - 60, y + 2, "Precio")
     
-    y -= 15
-    c.setLineWidth(0.5)
-    c.line(50, y + 10, 500, y + 10)
+    y -= 5
+    c.setLineWidth(1)
+    c.setStrokeColor(COLOR_SECUNDARY)
+    c.line(50, y, width - 50, y)
     
+    # Filas de exámenes
     c.setFont("Helvetica", 9)
+    c.setFillColor(COLOR_TEXT)
+    y -= 20
     
     for item in examenes:
-        if y < 50:
+        if y < 100:
             c.showPage()
-            y = height - 50
+            # Repetir encabezado en nueva página
+            c.setFillColor(COLOR_PRIMARY)
+            c.rect(50, height - 25, width - 100, 22, fill=True, stroke=False)
+            c.setFont("Helvetica-Bold", 10)
+            c.setFillColor(colors.white)
+            c.drawString(55, height - 20, "Código")
+            c.drawString(120, height - 20, "Examen")
+            if proforma.mostrar_precios:
+                c.drawRightString(width - 60, height - 20, "Precio")
+            y = height - 55
         
-        c.drawString(50, y, item.examen.codigo)
+        c.setFont("Helvetica", 9)
+        c.setFillColor(COLOR_TEXT)
+        c.drawString(55, y, item.examen.codigo)
+        
+        nombre_examen = item.examen.nombre[:40] if len(item.examen.nombre) > 40 else item.examen.nombre
+        c.drawString(120, y, nombre_examen)
+        
         if proforma.mostrar_precios:
-            c.drawString(120, y, item.examen.nombre[:35] if len(item.examen.nombre) > 35 else item.examen.nombre)
-            c.drawString(350, y, f"${item.precio_unitario:.2f}")
-        else:
-            c.drawString(120, y, item.examen.nombre[:45] if len(item.examen.nombre) > 45 else item.examen.nombre)
-        y -= 18
+            c.drawRightString(width - 60, y, f"${item.precio_unitario:,.2f}")
+        
+        # Línea divisoria sutil
+        c.setLineWidth(0.3)
+        c.setStrokeColor(colors.lightgrey)
+        c.line(50, y - 5, width - 50, y - 5)
+        
+        y -= 22
     
-    # Total
-    y -= 10
-    c.line(50, y + 10, 500, y + 10)
-    y -= 5
-    c.setFont("Helvetica-Bold", 12)
-    c.drawString(50, y, f"TOTAL: ${proforma.total:.2f}")
+    # ===== TOTAL =====
+    y -= 20
+    c.setLineWidth(1)
+    c.setStrokeColor(COLOR_SECUNDARY)
+    c.line(50, y, width - 50, y)
+    y += 5  # Subir el texto para que no quede debajo de la línea
     
-    # Observaciones
+    c.setFont("Helvetica-Bold", 14)
+    c.setFillColor(COLOR_PRIMARY)
+    c.drawString(50, y, "TOTAL:")
+    c.drawRightString(width - 60, y, f"${proforma.total:,.2f}")
+    
+    # ===== OBSERVACIONES =====
     if proforma.observaciones:
         y -= 40
-        c.setFont("Helvetica-Bold", 10)
+        c.setFont("Helvetica-Bold", 11)
+        c.setFillColor(COLOR_PRIMARY)
         c.drawString(50, y, "Observaciones:")
-        y -= 15
+        y -= 18
         c.setFont("Helvetica", 9)
-        c.drawString(50, y, proforma.observaciones[:100] if len(proforma.observaciones) > 100 else proforma.observaciones)
+        c.setFillColor(COLOR_TEXT)
+        
+        # Dividir observaciones en líneas
+        obs_lines = []
+        words = proforma.observaciones.split()
+        line = ""
+        for word in words:
+            if len(line + word) < 80:
+                line += word + " "
+            else:
+                obs_lines.append(line)
+                line = word + " "
+        obs_lines.append(line)
+        
+        for line in obs_lines:
+            c.drawString(50, y, line.strip())
+            y -= 14
+    
+    # ===== PIE DE PÁGINA =====
+    footer_y = 40
+    c.setLineWidth(0.5)
+    c.setStrokeColor(colors.lightgrey)
+    c.line(50, footer_y + 15, width - 50, footer_y + 15)
+    
+    c.setFont("Helvetica", 8)
+    c.setFillColor(colors.grey)
+    c.drawCentredString(width / 2, footer_y, "Laboratorio Clínico - Confianza")
+    c.drawCentredString(width / 2, footer_y - 12, "www.laboratorioconfianza.com | contacto@laboratorioconfianza.com")
     
     c.save()
     buffer.seek(0)

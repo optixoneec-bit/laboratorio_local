@@ -112,6 +112,12 @@ class EquipoMapeo(models.Model):
         return f'{self.equipo.codigo} -> {self.codigo_equipo}'
 
 class HL7Mensaje(models.Model):
+    TIPO_MENSAJE_CHOICES = [
+        ('consulta', 'Consulta del equipo'),
+        ('resultado', 'Resultado enviado por equipo'),
+        ('respuesta', 'Respuesta del sistema'),
+    ]
+    
     fecha_recepcion = models.DateTimeField(auto_now_add=True)
     ip_equipo = models.CharField(max_length=100, blank=True, null=True)
     mensaje_raw = models.TextField()
@@ -124,6 +130,7 @@ class HL7Mensaje(models.Model):
     sample_id = models.CharField(max_length=100, blank=True, null=True)
     exam_codes = models.CharField(max_length=500, blank=True, null=True)
 
+    tipo = models.CharField(max_length=20, choices=TIPO_MENSAJE_CHOICES, default='resultado')
     estado = models.CharField(max_length=20, default="pendiente")
 
     def __str__(self):

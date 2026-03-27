@@ -22,6 +22,8 @@ urlpatterns = [
     path('hl7/historial/', views.hl7_historial, name='hl7_historial'),
     path('hl7/<int:pk>/', views.hl7_ver, name='hl7_ver'),
     path('hl7/<int:pk>/aplicar/', views.hl7_aplicar_a_orden, name='hl7_aplicar_a_orden'),
+    path('hl7/<int:pk>/eliminar/', views.hl7_eliminar_ajax, name='hl7_eliminar'),
+    path('hl7/eliminar_varios/', views.hl7_eliminar_varios_ajax, name='hl7_eliminar_varios'),
     path('hl7/start/', views.hl7_start, name='hl7_start'),
     path('hl7/stop/', views.hl7_stop, name='hl7_stop'),
 

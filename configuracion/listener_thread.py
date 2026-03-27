@@ -434,7 +434,6 @@ def _auto_cargar_resultados_desde_hl7(msg: HL7Mensaje):
         return {"ok": False, "reason": "sin_obx", "creados": 0, "actualizados": 0, "ignorados": 0}
 
     creados = 0
-    actualizados = 0
     ignorados = 0
 
     with transaction.atomic():
@@ -467,15 +466,25 @@ def _auto_cargar_resultados_desde_hl7(msg: HL7Mensaje):
                 ignorados += 1
                 continue
 
-            obj, created = Resultado.objects.update_or_create(
+            # VERIFICAR SI YA EXISTE EL RESULTADO - NO ACTUALIZAR NUNCA
+            # Si ya existe, se ignora (no se actualiza aunque el equipo reenvíe)
+            existe = Resultado.objects.filter(
+                orden_examen=oe,
+                parametro=param
+            ).exists()
+
+            if existe:
+                ignorados += 1
+                continue
+
+            # Solo crear si no existe - NUNCA actualizar
+            obj = Resultado.objects.create(
                 orden_examen=oe,
                 parametro=param,
-                defaults={
-                    "valor": it.get("value") if (it.get("value") or "").strip() != "" else None,
-                    "unidad": it.get("unit") if (it.get("unit") or "").strip() != "" else None,
-                    "referencia": it.get("ref") if (it.get("ref") or "").strip() != "" else None,
-                    "orden_equipo": int(it.get("seq") or 0),
-                }
+                valor=it.get("value") if (it.get("value") or "").strip() != "" else None,
+                unidad=it.get("unit") if (it.get("unit") or "").strip() != "" else None,
+                referencia=it.get("ref") if (it.get("ref") or "").strip() != "" else None,
+                orden_equipo=int(it.get("seq") or 0),
             )
 
             try:
@@ -485,12 +494,9 @@ def _auto_cargar_resultados_desde_hl7(msg: HL7Mensaje):
             except Exception:
                 pass
 
-            if created:
-                creados += 1
-            else:
-                actualizados += 1
+            creados += 1
 
-        if creados > 0 or actualizados > 0:
+        if creados > 0:
             msg.estado = "procesado"
 
             try:
@@ -587,14 +593,7 @@ def listener_loop():
                         raw_text = hl7_message.decode(errors="ignore")
                         msh, pid, obr, obx, sample_id, exam_codes = parse_hl7(hl7_message)
 
-                        msg = HL7Mensaje.objects.create(
-                            ip_equipo=addr[0],
-                            mensaje_raw=raw_text,
-                            msh=msh, pid=pid, obr=obr, obx=obx,
-                            sample_id=sample_id, exam_codes=exam_codes,
-                            estado="pendiente",
-                        )
-
+                        # Determinar tipo de mensaje
                         msg_type = _msh_get_message_type(msh)
                         has_qrd = ("QRD|" in raw_text)
 
@@ -609,7 +608,20 @@ def listener_loop():
                         except Exception:
                             is_query = False
 
+                        # Guardar mensaje con el tipo correcto
+                        tipo_mensaje = 'consulta' if is_query else 'resultado'
+                        
+                        msg = HL7Mensaje.objects.create(
+                            ip_equipo=addr[0],
+                            mensaje_raw=raw_text,
+                            msh=msh, pid=pid, obr=obr, obx=obx,
+                            sample_id=sample_id, exam_codes=exam_codes,
+                            tipo=tipo_mensaje,
+                            estado="pendiente",
+                        )
+
                         if is_query:
+                            # Es una consulta - responder con datos del paciente
                             respuesta = construir_respuesta_consulta(sample_id, msh)
                             conn.send(START_BLOCK + respuesta + END_BLOCK + b"\x0d")
                         else:

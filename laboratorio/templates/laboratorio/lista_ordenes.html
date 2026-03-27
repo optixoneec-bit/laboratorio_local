@@ -342,6 +342,14 @@
               <i class="mdi mdi-file-pdf-box"></i> Detalle
             </a>
 
+            {% if request.user.is_superuser or request.user.is_staff or perms.configuracion.mod_configuracion %}
+            <button type="button" 
+                    class="btn btn-sm btn-danger ms-1"
+                    onclick="eliminarOrden({{ orden.id }}, '{{ orden.numero_orden }}')">
+              <i class="mdi mdi-delete"></i>
+            </button>
+            {% endif %}
+
           </td>
 
         </tr>
@@ -470,6 +478,34 @@
         toggleBtn.classList.remove('btn-primary');
         toggleBtn.classList.add('btn-outline-primary');
       }
+    });
+  }
+
+  // Función para eliminar orden
+  function eliminarOrden(id, numero) {
+    if (!confirm(`¿Estás seguro de eliminar la orden ${numero}? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    
+    fetch(`/ordenes/${id}/eliminar/`, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': '{{ csrf_token }}',
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.status === 'ok') {
+        alert(data.message);
+        location.reload();
+      } else {
+        alert('Error: ' + data.message);
+      }
+    })
+    .catch(error => {
+      alert('Error al eliminar la orden');
+      console.error(error);
     });
   }
 </script>

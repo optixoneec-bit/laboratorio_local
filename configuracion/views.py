@@ -7,6 +7,7 @@ from django.http import JsonResponse
 from django.contrib.contenttypes.models import ContentType
 from django.views.decorators.http import require_POST
 from functools import wraps, lru_cache
+import json
 
 from .listener_thread import start_listener, stop_listener, status_listener
 from .models import HL7Mensaje, ConfigGeneral, Equipo, EquipoMapeo
@@ -208,6 +209,42 @@ def hl7_ver(request, pk):
     return render(request, 'configuracion/hl7_ver.html', {
         'msg': msg
     })
+
+
+@login_required
+def hl7_eliminar_ajax(request, pk):
+    """Elimina un mensaje HL7 (solo para admins)"""
+    if not (request.user.is_superuser or request.user.is_staff):
+        return JsonResponse({'status': 'error', 'message': 'No tienes permiso'}, status=403)
+    
+    if request.method == 'POST':
+        msg = get_object_or_404(HL7Mensaje, pk=pk)
+        msg.delete()
+        return JsonResponse({'status': 'ok', 'message': 'Mensaje eliminado'})
+    
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
+
+
+@login_required
+def hl7_eliminar_varios_ajax(request):
+    """Elimina varios mensajes HL7 (solo para admins)"""
+    if not (request.user.is_superuser or request.user.is_staff):
+        return JsonResponse({'status': 'error', 'message': 'No tienes permiso'}, status=403)
+    
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            ids = data.get('ids', [])
+        except:
+            return JsonResponse({'status': 'error', 'message': 'Datos inválidos'}, status=400)
+        
+        if not ids:
+            return JsonResponse({'status': 'error', 'message': 'No hay mensajes seleccionados'}, status=400)
+        
+        eliminados = HL7Mensaje.objects.filter(id__in=ids).delete()[0]
+        return JsonResponse({'status': 'ok', 'message': f'{eliminados} mensajes eliminados'})
+    
+    return JsonResponse({'status': 'error', 'message': 'Método no permitido'}, status=405)
 
 
 def _hl7_parse_msh(raw_text):

@@ -32,29 +32,68 @@
 
                 <h4 class="mb-3">Mensajes recibidos</h4>
 
+                <div class="mb-3">
+                    {% if request.user.is_superuser or request.user.is_staff %}
+                    <button type="button" class="btn btn-danger btn-sm" onclick="eliminarSeleccionados()">
+                        <i class="mdi mdi-delete"></i> Eliminar seleccionados
+                    </button>
+                    {% endif %}
+                </div>
+
                 <table class="table table-hover">
                     <thead>
                         <tr>
+                            <th>
+                                <input type="checkbox" id="selectAll" onchange="toggleAll(this)">
+                            </th>
                             <th>Fecha</th>
+                            <th>Tipo</th>
                             <th>IP</th>
                             <th>Sample</th>
+                            <th>Estado</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for m in mensajes %}
                         <tr>
+                            <td>
+                                <input type="checkbox" class="msg-checkbox" value="{{ m.id }}">
+                            </td>
                             <td>{{ m.fecha_recepcion }}</td>
+                            <td>
+                                {% if m.tipo == 'consulta' %}
+                                <span class="badge bg-info">Consulta</span>
+                                {% else %}
+                                <span class="badge bg-success">Resultado</span>
+                                {% endif %}
+                            </td>
                             <td>{{ m.ip_equipo }}</td>
                             <td>{{ m.sample_id }}</td>
                             <td>
+                                {% if m.estado == 'procesado' %}
+                                <span class="badge bg-success">{{ m.estado }}</span>
+                                {% elif m.estado == 'pendiente' %}
+                                <span class="badge bg-warning">{{ m.estado }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ m.estado }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
                                 <a href="{% url 'configuracion:hl7_ver' m.id %}"
                                    class="btn btn-primary btn-sm">Ver</a>
+                                {% if request.user.is_superuser or request.user.is_staff %}
+                                <button type="button" 
+                                        class="btn btn-danger btn-sm"
+                                        onclick="eliminarMensaje({{ m.id }})">
+                                    <i class="mdi mdi-delete"></i>
+                                </button>
+                                {% endif %}
                             </td>
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="4" class="text-center">No hay mensajes disponibles</td>
+                            <td colspan="7" class="text-center">No hay mensajes disponibles</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -66,4 +105,76 @@
 
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleAll(source) {
+    const checkboxes = document.querySelectorAll('.msg-checkbox');
+    checkboxes.forEach(cb => cb.checked = source.checked);
+}
+
+function eliminarMensaje(id) {
+    if (!confirm('¿Estás seguro de eliminar este mensaje HL7?')) {
+        return;
+    }
+    
+    fetch(`/configuracion/hl7/${id}/eliminar/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'ok') {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error al eliminar el mensaje');
+        console.error(error);
+    });
+}
+
+function eliminarSeleccionados() {
+    const checkboxes = document.querySelectorAll('.msg-checkbox:checked');
+    const ids = Array.from(checkboxes).map(cb => cb.value);
+    
+    if (ids.length === 0) {
+        alert('Selecciona al menos un mensaje');
+        return;
+    }
+    
+    if (!confirm(`¿Estás seguro de eliminar ${ids.length} mensajes?`)) {
+        return;
+    }
+    
+    fetch('/configuracion/hl7/eliminar_varios/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ ids: ids })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'ok') {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        alert('Error al eliminar los mensajes');
+        console.error(error);
+    });
+}
+</script>
 {% endblock %}
